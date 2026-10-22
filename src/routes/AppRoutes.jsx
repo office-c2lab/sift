@@ -94,7 +94,7 @@ export default function AppRoutes() {
     <Routes>
       <Route path={ROUTES.upload} element={<><UploadPage onChooseFile={chooseFile} loading={loadingPreview} error={uploadError} />{previewData && <PreviewModal data={previewData} error={detailError} loading={loadingDetail} onCancel={cancelPreview} onConfirm={loadDetails} />}</>} />
       <Route path={ROUTES.loading} element={selectedFile && previewData ? <DetailLoadingPage /> : <Navigate to={ROUTES.upload} replace />} />
-      <Route path={ROUTES.details} element={detailData ? <DetailPage data={detailData} onChangeFile={startOver} /> : <Navigate to={ROUTES.upload} replace />} />
+      <Route path={`${ROUTES.details}/*`} element={detailData ? <DetailPage data={detailData} onChangeFile={startOver} /> : <Navigate to={ROUTES.upload} replace />} />
       <Route path="*" element={<Navigate to={ROUTES.upload} replace />} />
     </Routes>
   );
