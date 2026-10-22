@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { parseCsv } from '../utils/csv.js';
 import UploadPage from '../pages/UploadPage.jsx';
@@ -7,20 +7,51 @@ import DetailLoadingPage from '../pages/DetailLoadingPage.jsx';
 import DetailPage from '../pages/DetailPage.jsx';
 import { ROUTES } from './paths.js';
 
+const DATA_STORAGE_KEY = 'sift:uploaded-dataset';
+
+function readSavedData() {
+  try {
+    const saved = localStorage.getItem(DATA_STORAGE_KEY);
+    if (!saved) return null;
+    const data = JSON.parse(saved);
+    return Array.isArray(data.headers) && Array.isArray(data.rows) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearSavedData() {
+  try {
+    localStorage.removeItem(DATA_STORAGE_KEY);
+  } catch {
+    // Keep the upload flow working if browser storage is unavailable.
+  }
+}
+
 export default function AppRoutes() {
   const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewData, setPreviewData] = useState(null);
-  const [detailData, setDetailData] = useState(null);
+  const [detailData, setDetailData] = useState(readSavedData);
   const [uploadError, setUploadError] = useState('');
   const [detailError, setDetailError] = useState('');
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
+  useEffect(() => {
+    if (!detailData) return;
+    try {
+      localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(detailData));
+    } catch {
+      // Storage can be full for very large CSV files; keep the current session usable.
+    }
+  }, [detailData]);
+
   const chooseFile = async (file) => {
     if (!file) return;
     setPreviewData(null);
     setDetailData(null);
+    clearSavedData();
     setUploadError('');
     setDetailError('');
     if (!/\.csv$/i.test(file.name)) {
@@ -85,6 +116,7 @@ export default function AppRoutes() {
     setSelectedFile(null);
     setPreviewData(null);
     setDetailData(null);
+    clearSavedData();
     setUploadError('');
     setDetailError('');
     navigate(ROUTES.upload, { replace: true });
