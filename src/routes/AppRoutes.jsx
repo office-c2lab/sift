@@ -5,6 +5,7 @@ import UploadPage from '../pages/UploadPage.jsx';
 import PreviewModal from '../pages/PreviewModal.jsx';
 import DetailLoadingPage from '../pages/DetailLoadingPage.jsx';
 import DetailPage from '../pages/DetailPage.jsx';
+import DetailTabView from '../pages/DetailTabView.jsx';
 import { ROUTES } from './paths.js';
 
 const DATA_STORAGE_KEY = 'sift:uploaded-dataset';
@@ -133,21 +134,15 @@ export default function AppRoutes() {
     navigate(ROUTES.upload, { replace: true });
   };
 
-  const startOver = () => {
-    setSelectedFile(null);
-    setPreviewData(null);
-    setDetailData(null);
-    clearSavedData();
-    setUploadError('');
-    setDetailError('');
-    navigate(ROUTES.upload, { replace: true });
-  };
-
   return (
     <Routes>
       <Route path={ROUTES.upload} element={<><UploadPage onChooseFile={chooseFile} loading={loadingPreview} error={uploadError} />{previewData && <PreviewModal data={previewData} error={detailError} loading={loadingDetail} encoding={csvEncoding} encodingLoading={encodingLoading} onEncodingChange={changeEncoding} onCancel={cancelPreview} onConfirm={loadDetails} />}</>} />
       <Route path={ROUTES.loading} element={selectedFile && previewData ? <DetailLoadingPage /> : <Navigate to={ROUTES.upload} replace />} />
-      <Route path={`${ROUTES.details}/*`} element={detailData ? <DetailPage data={detailData} onChangeFile={startOver} /> : <Navigate to={ROUTES.upload} replace />} />
+      <Route path={ROUTES.details} element={detailData ? <DetailPage data={detailData} /> : <Navigate to={ROUTES.upload} replace />}>
+        <Route index element={<DetailTabView view="overview" />} />
+        <Route path="processing" element={<DetailTabView view="processing" />} />
+        <Route path="visualization" element={<DetailTabView view="visualization" />} />
+      </Route>
       <Route path="*" element={<Navigate to={ROUTES.upload} replace />} />
     </Routes>
   );

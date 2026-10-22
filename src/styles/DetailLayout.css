@@ -1,0 +1,278 @@
+/* Shared viewport sizing for every dataset detail tab. */
+.detail-workspace {
+  padding-top: 0;
+}
+
+/* Keep the navigation sidebar flush with the viewport at every breakpoint. */
+.preview-workspace.detail-workspace {
+  padding-left: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.detail-page-header {
+  height: 48px;
+  flex: 0 0 48px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-bottom: 1px solid #e8eee9;
+  background: #fff;
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+.detail-header-ai-button {
+  min-height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #bfe4cc;
+  border-radius: 8px;
+  color: #18864e;
+  background: #f1faf4;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.detail-header-ai-button:hover {
+  border-color: #75c892;
+  background: #e5f6eb;
+}
+
+.detail-header-ai-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.detail-workspace .preview-sidebar {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 18px 14px;
+  align-items: stretch;
+  overflow-y: auto;
+  border: 0;
+  border-right: 1px solid #e2e9e4;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+}
+
+.detail-workspace .preview-sidebar > .detail-tabs {
+  width: 100%;
+  height: auto;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  border: 0;
+  overflow: visible;
+}
+
+.detail-workspace .preview-sidebar > .detail-tabs button {
+  min-height: 44px;
+  width: 100%;
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  padding: 0 12px;
+  gap: 10px;
+  border-radius: 8px;
+  color: #617268;
+  font-size: 14px;
+}
+
+.detail-workspace .preview-sidebar > .detail-tabs button.active {
+  color: #168a50;
+  background: #edf8f0;
+}
+
+.detail-workspace .preview-sidebar > .detail-tabs button.active::after {
+  top: 7px;
+  right: auto;
+  bottom: 7px;
+  left: 0;
+  width: 3px;
+  height: auto;
+  border-radius: 0 3px 3px 0;
+}
+
+.detail-workspace .preview-sidebar > .detail-tabs button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.detail-workspace .detail-layout {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #dfe8e2;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 18px #284b3509;
+}
+
+.preview-workspace.detail-workspace .detail-layout.with-assistant {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+}
+
+.detail-workspace .detail-layout > .detail-main {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Processing and chart settings belong to the page workspace, beside its data. */
+.detail-workspace .processing-view,
+.detail-workspace .visualization-view {
+  display: grid;
+  grid-template-columns: minmax(250px, 290px) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 14px;
+}
+
+.detail-workspace .page-control-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid #e2ebe5;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.detail-workspace .page-control-panel .sidebar-tools,
+.detail-workspace .page-control-panel .sidebar-chart-controls {
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.detail-workspace .page-control-panel .sidebar-tools {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-workspace .page-control-panel .sidebar-column-list {
+  max-height: 36vh;
+  flex: 1 1 auto;
+}
+
+.detail-workspace .visual-chart-card {
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (min-width: 1001px) {
+  .detail-workspace {
+    height: 100vh;
+    height: 100dvh;
+    padding: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .preview-workspace.detail-workspace:has(> .detail-page-header) {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-rows: 48px minmax(0, 1fr);
+    column-gap: 14px;
+    row-gap: 12px;
+  }
+
+  .preview-workspace.detail-workspace.assistant-visible:has(> .detail-page-header) {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 320px;
+    grid-template-rows: 48px minmax(0, 1fr);
+    gap: 12px 14px;
+  }
+
+  .preview-workspace.detail-workspace.assistant-visible > .ai-assistant-panel {
+    grid-column: 3;
+    grid-row: 2;
+    height: auto;
+    min-height: 0;
+  }
+
+  .preview-workspace.detail-workspace > .ai-assistant-panel {
+    height: auto;
+    min-height: 0;
+  }
+
+  .preview-workspace.detail-workspace.assistant-visible .detail-layout {
+    grid-column: 2;
+    grid-row: 2;
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    min-height: 0;
+    padding: 0;
+  }
+}
+
+@media (max-width: 1000px) {
+  .detail-workspace {
+    padding-top: 0;
+  }
+
+  .preview-workspace.detail-workspace:has(> .detail-page-header) {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .preview-workspace.detail-workspace.assistant-visible > .detail-shell,
+  .preview-workspace.detail-workspace.assistant-visible > .ai-assistant-panel {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .detail-workspace .preview-sidebar { height: auto; max-height: none; }
+  .detail-workspace .detail-layout { min-height: 0; height: auto; }
+
+  .detail-workspace .processing-view,
+  .detail-workspace .visualization-view {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(190px, auto) minmax(300px, 1fr);
+    overflow: auto;
+  }
+
+  .detail-workspace .page-control-panel .sidebar-column-list {
+    max-height: 28vh;
+  }
+}
+
+@media (max-width: 700px) {
+  .detail-workspace .preview-sidebar { border-radius: 0; }
+  .detail-workspace .detail-layout { border-radius: 12px; }
+  .detail-page-header { height: 44px; flex-basis: 44px; padding: 0 12px; }
+  .detail-header-ai-button { min-height: 34px; font-size: 12px; }
+}
