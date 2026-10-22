@@ -69,7 +69,7 @@ export default function AppRoutes() {
         file.slice(0, Math.min(file.size, 512 * 1024)).text(),
         new Promise((resolve) => window.setTimeout(resolve, 700)),
       ]);
-      const sample = parseCsv(text, 5);
+      const sample = parseCsv(text, 10);
       if (!sample || !sample.headers.length) {
         setUploadError('CSV에서 미리보기 데이터를 찾지 못했어요. 파일 내용을 확인해 주세요.');
         return;

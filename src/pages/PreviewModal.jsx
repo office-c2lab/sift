@@ -9,7 +9,7 @@ export default function PreviewModal({ data, error, loading, onCancel, onConfirm
         <div className="modal-table-wrap">
           <table className="preview-table">
             <thead><tr><th>일련번호</th>{data.headers.map((header, index) => <th key={`${header}-${index}`}>{header}</th>)}</tr></thead>
-            <tbody>{data.rows.slice(0, 5).map((row, rowIndex) => <tr key={rowIndex}><td>{rowIndex + 1}</td>{data.headers.map((_, columnIndex) => <td key={columnIndex}>{row[columnIndex] || <span className="blank-value">—</span>}</td>)}</tr>)}</tbody>
+            <tbody>{data.rows.slice(0, 10).map((row, rowIndex) => <tr key={rowIndex}><td>{rowIndex + 1}</td>{data.headers.map((_, columnIndex) => <td key={columnIndex}>{row[columnIndex] || <span className="blank-value">—</span>}</td>)}</tr>)}</tbody>
           </table>
         </div>
         {error && <p className="modal-error" role="alert">{error}</p>}

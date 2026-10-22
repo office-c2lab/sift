@@ -48,7 +48,6 @@ function ProcessToolIcon({ type }) {
 export default function DetailPage({ data, onChangeFile }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [search, setSearch] = useState('');
   const [columnSearch, setColumnSearch] = useState('');
   const [selectedRemovalColumns, setSelectedRemovalColumns] = useState([]);
   const [removedColumns, setRemovedColumns] = useState([]);
@@ -76,7 +75,7 @@ export default function DetailPage({ data, onChangeFile }) {
     });
     return [...grouped.entries()].slice(0, 20).map(([label, value]) => ({ label, value }));
   }, [data, metric, categoryIndex]);
-  const visibleRows = useMemo(() => processedRows.filter((row) => !search || row.some((value) => String(value).toLowerCase().includes(search.toLowerCase()))), [processedRows, search]);
+  const visibleRows = processedRows;
   const visibleColumns = data.headers.map((_, index) => index).filter((index) => !removedColumns.includes(index));
   const missingRowsCount = processedRows.filter((row) => row.some((value) => String(value ?? '').trim() === '')).length;
   const duplicateRowsCount = processedRows.length - new Set(processedRows.map((row) => JSON.stringify(row))).size;
@@ -172,11 +171,11 @@ export default function DetailPage({ data, onChangeFile }) {
           <button className={activeTab === 'visualization' ? 'active' : ''} onClick={() => navigate(ROUTES.visualization)}><TabIcon type="visualization"/>시각화</button>
         </nav>
 
-        {activeTab === 'overview' && <section className="detail-view overview-view"><div className="view-caption"><strong>전체 데이터</strong><span>{data.totalRows.toLocaleString()}개 행 · {data.headers.length}개 열</span></div><DataTable headers={data.headers} rows={data.rows}/></section>}
+        {activeTab === 'overview' && <section className="detail-view overview-view"><DataTable headers={data.headers} rows={data.rows}/></section>}
 
         {activeTab === 'visualization' && <section className="detail-view visualization-view"><div className="visual-chart-card"><div className="visual-chart-heading"><div><h2>{metric ? `${metric.header} 합계` : '행 개수'} · {categoryIndex >= 0 ? data.headers[categoryIndex] : '전체 행'}</h2><p>왼쪽 설정에서 그래프 종류와 기준을 바꿀 수 있습니다.</p></div><span className="chart-legend-label"><i/>{metric?.header || '행 개수'}</span></div>{chartData.length > 0 ? <div className="recharts-frame"><ResponsiveContainer width="100%" height="100%">{chartType === 'pie' ? <PieChart><Tooltip/><Legend/><Pie data={chartData} dataKey="value" nameKey="label" cx="50%" cy="48%" outerRadius="72%" label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}>{chartData.map((item,index) => <Cell key={item.label} fill={CHART_COLORS[index % CHART_COLORS.length]}/>)}</Pie></PieChart> : chartType === 'line' ? <LineChart data={chartData} margin={{top:20,right:24,left:8,bottom:48}}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="label" angle={-28} textAnchor="end" interval={0} height={65}/><YAxis/><Tooltip/><Line type="monotone" dataKey="value" name={metric?.header || '행 개수'} stroke="#20a96b" strokeWidth={3} dot={{r:4}} activeDot={{r:6}}/></LineChart> : chartType === 'area' ? <AreaChart data={chartData} margin={{top:20,right:24,left:8,bottom:48}}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="label" angle={-28} textAnchor="end" interval={0} height={65}/><YAxis/><Tooltip/><Area type="monotone" dataKey="value" name={metric?.header || '행 개수'} stroke="#20a96b" fill="#b9e8ca" strokeWidth={3}/></AreaChart> : <BarChart data={chartData} margin={{top:20,right:24,left:8,bottom:48}}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="label" angle={-28} textAnchor="end" interval={0} height={65}/><YAxis/><Tooltip/><Bar dataKey="value" name={metric?.header || '행 개수'} fill="#20a96b" radius={[6,6,0,0]}/></BarChart>}</ResponsiveContainer></div> : <div className="visual-empty">표시할 데이터가 없습니다.</div>}</div></section>}
 
-        {activeTab === 'processing' && <section className="detail-view processing-view"><div className="processing-heading"><div><h2>데이터 처리</h2><p>왼쪽 도구를 선택해 결측치, 중복 행 또는 컬럼을 정리하세요.</p></div><label className="row-search"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="데이터 검색" /></label></div><div className="view-caption"><strong>처리 결과</strong><span>{visibleRows.length.toLocaleString()}개 행 · {visibleColumns.length}개 컬럼</span></div><DataTable headers={data.headers} rows={visibleRows} indices={visibleColumns}/></section>}
+        {activeTab === 'processing' && <section className="detail-view processing-view"><DataTable headers={data.headers} rows={visibleRows} indices={visibleColumns}/></section>}
       </section>
       </div>
       </div>

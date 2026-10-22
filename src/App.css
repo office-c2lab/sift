@@ -376,3 +376,44 @@
 .chart-control-hint { font-size: 11px; }
 .preview-sidebar .sidebar-change-button, .remove-columns-button { font-size: 13px; }
 .preview-sidebar .sidebar-change-button span { font-size: 17px; }
+
+/* Keep long CSV tables inside the detail viewport; scroll the table itself. */
+@media (min-width: 1001px) {
+  .preview-workspace:has(> .detail-shell) { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+  .detail-shell { height: calc(100vh - 28px); height: calc(100dvh - 28px); min-height: 0; }
+  .detail-shell > .preview-sidebar, .detail-shell > .detail-layout { min-height: 0; height: 100%; }
+  .detail-shell > .preview-sidebar { overflow-y: auto; }
+  .detail-shell .preview-main.detail-main { height: 100%; min-height: 0; overflow: hidden; }
+  .detail-main > .detail-view { min-height: 0; overflow: hidden; }
+  .detail-main .detail-table-wrap { min-height: 0; flex: 1 1 0; overflow: auto; }
+  .detail-main .processing-view { overflow: hidden; }
+}
+@media (min-width: 701px) and (max-width: 1000px) {
+  .preview-workspace:has(> .detail-shell) { min-height: 0; }
+  .detail-shell { height: calc(100vh - 28px); min-height: 0; }
+  .detail-shell > .detail-layout, .detail-shell .preview-main.detail-main { min-height: 0; height: 100%; }
+  .detail-shell .preview-main.detail-main { overflow: hidden; }
+  .detail-main > .detail-view { min-height: 0; overflow: hidden; }
+  .detail-main .detail-table-wrap { min-height: 0; flex: 1 1 0; overflow: auto; }
+  .detail-main .processing-view { overflow: hidden; }
+}
+@media (max-width: 700px) {
+  .detail-shell { height: 100vh; height: 100dvh; min-height: 0; grid-template-rows: minmax(0, 42vh) minmax(0, 1fr); }
+  .detail-shell > .preview-sidebar { min-height: 0; max-height: none; overflow-y: auto; }
+  .detail-shell > .detail-layout, .detail-shell .preview-main.detail-main { min-height: 0; height: 100%; }
+  .detail-shell .preview-main.detail-main { overflow: hidden; }
+  .detail-main > .detail-view { min-height: 0; overflow: hidden; }
+  .detail-main .detail-table-wrap { min-height: 0; flex: 1 1 0; overflow: auto; }
+  .detail-main .processing-view { overflow: hidden; }
+}
+
+/* Keep wide CSV previews inside the modal and scroll the table horizontally. */
+.preview-modal { min-width: 0; width: min(1080px, calc(100vw - 44px)); overflow: hidden; }
+.preview-modal > * { min-width: 0; max-width: 100%; }
+.modal-table-wrap { width: 100%; min-width: 0; max-width: 100%; flex: 0 1 auto; overflow: auto; overscroll-behavior: contain; }
+.modal-table-wrap .preview-table { width: max-content; min-width: 100%; }
+@media (max-width: 700px) {
+  .preview-modal { width: 100%; }
+  .modal-table-wrap { max-width: 100%; }
+}
+.processing-heading > .row-search { margin-left: auto; }
