@@ -37,6 +37,8 @@ export default function AppRoutes() {
   const [detailError, setDetailError] = useState('');
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [csvEncoding, setCsvEncoding] = useState('utf-8');
+  const [encodingLoading, setEncodingLoading] = useState(false);
 
   useEffect(() => {
     if (!detailData) return;
@@ -65,10 +67,12 @@ export default function AppRoutes() {
 
     setLoadingPreview(true);
     try {
-      const [text] = await Promise.all([
-        file.slice(0, Math.min(file.size, 512 * 1024)).text(),
+      setCsvEncoding('utf-8');
+      const [buffer] = await Promise.all([
+        file.slice(0, Math.min(file.size, 512 * 1024)).arrayBuffer(),
         new Promise((resolve) => window.setTimeout(resolve, 700)),
       ]);
+      const text = new TextDecoder('utf-8').decode(buffer);
       const sample = parseCsv(text, 10);
       if (!sample || !sample.headers.length) {
         setUploadError('CSV에서 미리보기 데이터를 찾지 못했어요. 파일 내용을 확인해 주세요.');
@@ -83,6 +87,23 @@ export default function AppRoutes() {
     }
   };
 
+  const changeEncoding = async (encoding) => {
+    if (!selectedFile || encoding === csvEncoding) return;
+    setCsvEncoding(encoding);
+    setDetailError('');
+    setEncodingLoading(true);
+    try {
+      const buffer = await selectedFile.slice(0, Math.min(selectedFile.size, 512 * 1024)).arrayBuffer();
+      const text = new TextDecoder(encoding).decode(buffer);
+      const sample = parseCsv(text, 10);
+      if (sample?.headers.length) setPreviewData((current) => current ? { ...current, ...sample } : current);
+    } catch {
+      setDetailError('선택한 인코딩으로 파일을 읽지 못했어요. 다른 인코딩을 선택해 주세요.');
+    } finally {
+      setEncodingLoading(false);
+    }
+  };
+
   const loadDetails = async () => {
     if (!selectedFile) return;
     setLoadingDetail(true);
@@ -90,10 +111,10 @@ export default function AppRoutes() {
     navigate(ROUTES.loading);
     try {
       const [text] = await Promise.all([
-        selectedFile.text(),
+        selectedFile.arrayBuffer(),
         new Promise((resolve) => window.setTimeout(resolve, 700)),
       ]);
-      const fullData = parseCsv(text);
+      const fullData = parseCsv(new TextDecoder(csvEncoding).decode(text));
       if (!fullData || !fullData.headers.length) throw new Error('empty CSV');
       setDetailData({ ...fullData, fileName: selectedFile.name, fileSize: selectedFile.size });
       navigate(ROUTES.details, { replace: true });
@@ -124,7 +145,7 @@ export default function AppRoutes() {
 
   return (
     <Routes>
-      <Route path={ROUTES.upload} element={<><UploadPage onChooseFile={chooseFile} loading={loadingPreview} error={uploadError} />{previewData && <PreviewModal data={previewData} error={detailError} loading={loadingDetail} onCancel={cancelPreview} onConfirm={loadDetails} />}</>} />
+      <Route path={ROUTES.upload} element={<><UploadPage onChooseFile={chooseFile} loading={loadingPreview} error={uploadError} />{previewData && <PreviewModal data={previewData} error={detailError} loading={loadingDetail} encoding={csvEncoding} encodingLoading={encodingLoading} onEncodingChange={changeEncoding} onCancel={cancelPreview} onConfirm={loadDetails} />}</>} />
       <Route path={ROUTES.loading} element={selectedFile && previewData ? <DetailLoadingPage /> : <Navigate to={ROUTES.upload} replace />} />
       <Route path={`${ROUTES.details}/*`} element={detailData ? <DetailPage data={detailData} onChangeFile={startOver} /> : <Navigate to={ROUTES.upload} replace />} />
       <Route path="*" element={<Navigate to={ROUTES.upload} replace />} />

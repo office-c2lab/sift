@@ -57,6 +57,7 @@ export default function DetailPage({ data, onChangeFile }) {
   const [chartType, setChartType] = useState('bar');
   const [chartMetricIndex, setChartMetricIndex] = useState('count');
   const [chartCategoryIndex, setChartCategoryIndex] = useState('auto');
+  const [overviewRowLimit, setOverviewRowLimit] = useState('100');
   const [assistantOpen, setAssistantOpen] = useState(true);
   const activeTab = location.pathname === ROUTES.visualization ? 'visualization' : location.pathname === ROUTES.processing ? 'processing' : 'overview';
   const numericColumns = useMemo(() => data.headers.map((header, index) => ({ header, index })).filter(({ index }) => {
@@ -77,6 +78,8 @@ export default function DetailPage({ data, onChangeFile }) {
   }, [data, metric, categoryIndex]);
   const visibleRows = processedRows;
   const visibleColumns = data.headers.map((_, index) => index).filter((index) => !removedColumns.includes(index));
+  const missingValueCount = data.rows.reduce((total, row) => total + row.filter((value) => String(value ?? '').trim() === '').length, 0);
+  const overviewRows = overviewRowLimit === 'all' ? data.rows : data.rows.slice(0, Number(overviewRowLimit));
   const missingRowsCount = processedRows.filter((row) => row.some((value) => String(value ?? '').trim() === '')).length;
   const duplicateRowsCount = processedRows.length - new Set(processedRows.map((row) => JSON.stringify(row))).size;
   const removeMissingRows = () => {
@@ -117,9 +120,9 @@ export default function DetailPage({ data, onChangeFile }) {
     });
   };
   const confirmFileChange = () => setConfirmation({
-    title: '파일을 변경할까요?',
-    description: '현재 데이터 처리 내용이 초기화되고 업로드 화면으로 이동합니다.',
-    confirmLabel: '파일 변경',
+    title: '업로드 화면으로 돌아갈까요?',
+    description: '현재 작업 내용이 초기화되고 업로드 화면으로 이동합니다.',
+    confirmLabel: '돌아가기',
     onConfirm: onChangeFile,
   });
   const runConfirmedAction = () => {
@@ -127,21 +130,44 @@ export default function DetailPage({ data, onChangeFile }) {
     setConfirmation(null);
     action?.();
   };
+  const downloadCurrentData = () => {
+    const csvRows = [
+      visibleColumns.map((index) => data.headers[index]),
+      ...processedRows.map((row) => visibleColumns.map((index) => row[index] ?? '')),
+    ];
+    const csvText = csvRows.map((row) => row.map((value) => {
+      const cell = String(value);
+      return /[",\r\n]/.test(cell) ? `"${cell.replaceAll('"', '""')}"` : cell;
+    }).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob(['\uFEFF', csvText], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = data.fileName || 'dataset.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
   return (
     <main className={`preview-workspace${assistantOpen ? ' assistant-visible' : ''}`}>
-      <div className="detail-shell">
-      <aside className="preview-sidebar">
-        <div className="preview-file-art"><span className="csv-document"><i>CSV</i></span><span className="file-success"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg></span></div>
-        <strong className="sidebar-file-name" title={data.fileName}>{data.fileName}</strong>
-        {activeTab === 'overview' && <>
-        <div className="file-meta-list">
-          <div><span className="meta-symbol">▣</span><span>파일 형식</span><strong>CSV</strong></div>
-          <div><span className="meta-symbol">▤</span><span>파일 크기</span><strong>{formatFileSize(data.fileSize)}</strong></div>
-          <div><span className="meta-symbol">▦</span><span>총 행 수</span><strong>{data.totalRows.toLocaleString()}개 행</strong></div>
-          <div><span className="meta-symbol">▦</span><span>총 열 수</span><strong>{data.headers.length}개 열</strong></div>
+      <header className="detail-file-header">
+        <div className="detail-header-top">
+          <div className="detail-header-leading">
+            <button type="button" className="detail-header-back" aria-label="파일 변경" title="파일 변경" onClick={confirmFileChange}><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/><path d="M9 12h11"/></svg></button>
+            <div className="detail-header-file"><span className="header-csv-icon csv-document"><i>CSV</i></span><strong title={data.fileName}>{data.fileName}</strong></div>
+          </div>
+          <div className="detail-header-actions">
+            <button type="button" className="detail-header-button" onClick={downloadCurrentData}><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 16v4h14v-4"/></svg>현재 데이터 다운로드</button>
+            {!assistantOpen && <button type="button" className="assistant-open-button" onClick={() => setAssistantOpen(true)}><span><svg viewBox="0 0 28 28"><path d="m13 2 2.7 8.1L24 13l-8.3 3L13 24l-2.7-8L2 13l8.3-2.9L13 2Z"/></svg></span>AI 어시스턴트 열기</button>}
+          </div>
         </div>
-        <ColumnInfoCard data={data}/>
-        </>}
+      </header>
+      <div className={`detail-shell${activeTab === 'overview' ? ' overview-shell' : ''}`}>
+      <div className="detail-content-card">
+      <nav className="detail-tabs" aria-label="상세 화면 탭">
+        <button className={activeTab === 'overview' ? 'active' : ''} onClick={() => navigate(ROUTES.details)}><TabIcon type="overview"/>데이터 개요</button>
+        <button className={activeTab === 'processing' ? 'active' : ''} onClick={() => navigate(ROUTES.processing)}><TabIcon type="processing"/>데이터 처리</button>
+        <button className={activeTab === 'visualization' ? 'active' : ''} onClick={() => navigate(ROUTES.visualization)}><TabIcon type="visualization"/>시각화</button>
+      </nav>
+      {activeTab !== 'overview' && <aside className="preview-sidebar">
         {activeTab === 'processing' && <section className="sidebar-tools">
           <div className="process-tool-cards">
             <button type="button" className={processingTool === 'columns' ? 'active' : ''} onClick={() => setProcessingTool('columns')}><span><ProcessToolIcon type="columns"/></span><div><strong>컬럼 제거</strong><small>선택한 컬럼을 데이터에서 제거</small></div></button>
@@ -160,23 +186,30 @@ export default function DetailPage({ data, onChangeFile }) {
           <div className="chart-select-field"><span>세로축 값</span><SidebarSelect value={chartMetricIndex} onChange={setChartMetricIndex} options={[{value:'count',label:'행 개수'}, ...numericColumns.map(({header,index}) => ({value:String(index),label:`${header} 합계`}))]}/></div>
           <p className="chart-control-hint">선택한 기준으로 데이터를 묶어 그래프로 보여줍니다.</p>
         </section>}
-        <button className="sidebar-change-button" onClick={confirmFileChange}><span>⟳</span> 파일 변경</button>
-      </aside>
+      </aside>}
       <div className={`detail-layout${assistantOpen ? ' with-assistant' : ''}`}>
       <section className="preview-main detail-main">
-        <header className="preview-main-header"><div><h1>데이터 상세</h1><p>업로드한 데이터의 구조와 내용을 확인하고 필요한 작업을 진행하세요.</p></div>{!assistantOpen && <button className="assistant-open-button" onClick={() => setAssistantOpen(true)}><span><svg viewBox="0 0 28 28"><path d="m13 2 2.7 8.1L24 13l-8.3 3L13 24l-2.7-8L2 13l8.3-2.9L13 2Z"/></svg></span>AI 어시스턴트 열기</button>}</header>
-        <nav className="detail-tabs" aria-label="상세 화면 탭">
-          <button className={activeTab === 'overview' ? 'active' : ''} onClick={() => navigate(ROUTES.details)}><TabIcon type="overview"/>데이터 개요</button>
-          <button className={activeTab === 'processing' ? 'active' : ''} onClick={() => navigate(ROUTES.processing)}><TabIcon type="processing"/>데이터 처리</button>
-          <button className={activeTab === 'visualization' ? 'active' : ''} onClick={() => navigate(ROUTES.visualization)}><TabIcon type="visualization"/>시각화</button>
-        </nav>
-
-        {activeTab === 'overview' && <section className="detail-view overview-view"><DataTable headers={data.headers} rows={data.rows}/></section>}
+        {activeTab === 'overview' && <section className="detail-view overview-view">
+          <div className="overview-metrics">
+            <article><span className="overview-metric-icon blue"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg></span><div><small>총 행 수</small><strong>{data.totalRows.toLocaleString()}</strong></div></article>
+            <article><span className="overview-metric-icon blue"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16M9 4v16"/></svg></span><div><small>총 컬럼 수</small><strong>{data.headers.length.toLocaleString()}</strong></div></article>
+            <article><span className="overview-metric-icon violet"><svg viewBox="0 0 24 24"><path d="M12 3v9l7.8 4.5A9 9 0 1 1 12 3Z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg></span><div><small>결측치 수</small><strong>{missingValueCount.toLocaleString()}</strong></div></article>
+            <article><span className="overview-metric-icon teal"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span><div><small>데이터 용량</small><strong>{formatFileSize(data.fileSize)}</strong></div></article>
+          </div>
+          <div className="overview-panels">
+            <ColumnInfoCard data={data} layout="table" />
+            <section className="overview-preview-card">
+              <header><div><span className="overview-preview-icon"><svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span><h2>데이터 미리보기</h2></div><div className="overview-limit-select"><SidebarSelect value={overviewRowLimit} onChange={setOverviewRowLimit} options={[{value:'100',label:'처음 100행 보기'},{value:'500',label:'처음 500행 보기'},{value:'all',label:'전체 데이터 보기'}]}/></div></header>
+              <DataTable headers={data.headers} rows={overviewRows}/>
+            </section>
+          </div>
+        </section>}
 
         {activeTab === 'visualization' && <section className="detail-view visualization-view"><div className="visual-chart-card"><div className="visual-chart-heading"><div><h2>{metric ? `${metric.header} 합계` : '행 개수'} · {categoryIndex >= 0 ? data.headers[categoryIndex] : '전체 행'}</h2><p>왼쪽 설정에서 그래프 종류와 기준을 바꿀 수 있습니다.</p></div><span className="chart-legend-label"><i/>{metric?.header || '행 개수'}</span></div>{chartData.length > 0 ? <div className="recharts-frame"><ResponsiveContainer width="100%" height="100%">{chartType === 'pie' ? <PieChart><Tooltip/><Legend/><Pie data={chartData} dataKey="value" nameKey="label" cx="50%" cy="48%" outerRadius="72%" label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}>{chartData.map((item,index) => <Cell key={item.label} fill={CHART_COLORS[index % CHART_COLORS.length]}/>)}</Pie></PieChart> : chartType === 'line' ? <LineChart data={chartData} margin={{top:20,right:24,left:8,bottom:48}}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="label" angle={-28} textAnchor="end" interval={0} height={65}/><YAxis/><Tooltip/><Line type="monotone" dataKey="value" name={metric?.header || '행 개수'} stroke="#20a96b" strokeWidth={3} dot={{r:4}} activeDot={{r:6}}/></LineChart> : chartType === 'area' ? <AreaChart data={chartData} margin={{top:20,right:24,left:8,bottom:48}}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="label" angle={-28} textAnchor="end" interval={0} height={65}/><YAxis/><Tooltip/><Area type="monotone" dataKey="value" name={metric?.header || '행 개수'} stroke="#20a96b" fill="#b9e8ca" strokeWidth={3}/></AreaChart> : <BarChart data={chartData} margin={{top:20,right:24,left:8,bottom:48}}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="label" angle={-28} textAnchor="end" interval={0} height={65}/><YAxis/><Tooltip/><Bar dataKey="value" name={metric?.header || '행 개수'} fill="#20a96b" radius={[6,6,0,0]}/></BarChart>}</ResponsiveContainer></div> : <div className="visual-empty">표시할 데이터가 없습니다.</div>}</div></section>}
 
         {activeTab === 'processing' && <section className="detail-view processing-view"><DataTable headers={data.headers} rows={visibleRows} indices={visibleColumns}/></section>}
       </section>
+      </div>
       </div>
       </div>
       {assistantOpen && <AIAssistantPanel data={data} onClose={() => setAssistantOpen(false)} />}

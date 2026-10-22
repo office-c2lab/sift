@@ -1,11 +1,30 @@
-export default function PreviewModal({ data, error, loading, onCancel, onConfirm }) {
+import { useState } from 'react';
+
+const ENCODINGS = [
+  { value: 'utf-8', label: 'UTF-8' },
+  { value: 'euc-kr', label: 'CP949 / EUC-KR' },
+];
+
+export default function PreviewModal({ data, error, loading, encoding, encodingLoading, onEncodingChange, onCancel, onConfirm }) {
+  const [encodingMenuOpen, setEncodingMenuOpen] = useState(false);
+  const currentEncoding = ENCODINGS.find((item) => item.value === encoding) || ENCODINGS[0];
   return (
     <div className="preview-modal-backdrop">
       <section className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
         <header className="preview-modal-heading">
           <div><h2 id="preview-modal-title">데이터 미리보기</h2><p>업로드한 CSV 파일의 일부 데이터를 확인해 주세요.</p></div>
         </header>
-        <div className="modal-file-name"><span className="modal-csv-mark">CSV</span><strong title={data.fileName}>{data.fileName}</strong></div>
+        <div className="modal-file-toolbar">
+          <div className="modal-file-name"><span className="modal-csv-mark">CSV</span><strong title={data.fileName}>{data.fileName}</strong></div>
+          <div className="modal-encoding-select" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setEncodingMenuOpen(false); }}>
+            <span>인코딩</span>
+            <button type="button" className="modal-encoding-trigger" aria-haspopup="listbox" aria-expanded={encodingMenuOpen} disabled={encodingLoading || loading} onClick={() => setEncodingMenuOpen((open) => !open)}>
+              {encodingLoading ? '읽는 중…' : currentEncoding.label}
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7.5 5 5 5-5"/></svg>
+            </button>
+            {encodingMenuOpen && <div className="modal-encoding-menu" role="listbox" aria-label="CSV 인코딩">{ENCODINGS.map((item) => <button type="button" role="option" aria-selected={item.value === encoding} key={item.value} className={item.value === encoding ? 'selected' : ''} onClick={() => { onEncodingChange(item.value); setEncodingMenuOpen(false); }}>{item.label}{item.value === encoding && <span aria-hidden="true">✓</span>}</button>)}</div>}
+          </div>
+        </div>
         <div className="modal-table-wrap">
           <table className="preview-table">
             <thead><tr><th>일련번호</th>{data.headers.map((header, index) => <th key={`${header}-${index}`}>{header}</th>)}</tr></thead>
