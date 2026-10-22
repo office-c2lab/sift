@@ -27,7 +27,7 @@ function ProcessToolIcon({ type }) {
   return <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8"/></svg>;
 }
 
-export default function DetailPage({ data }) {
+export default function DetailPage({ data, onChangeFile }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [columnSearch, setColumnSearch] = useState('');
@@ -101,6 +101,12 @@ export default function DetailPage({ data }) {
       },
     });
   };
+  const confirmFileChange = () => setConfirmation({
+    title: '업로드한 파일을 변경할까요?',
+    description: '현재 작업 내용이 초기화되고 업로드 화면으로 이동합니다.',
+    confirmLabel: '파일 변경',
+    onConfirm: onChangeFile,
+  });
   const runConfirmedAction = () => {
     const action = confirmation?.onConfirm;
     setConfirmation(null);
@@ -153,6 +159,7 @@ export default function DetailPage({ data }) {
       assistantOpen={assistantOpen}
       onAssistantOpen={() => setAssistantOpen(true)}
       onAssistantClose={() => setAssistantOpen(false)}
+      onFileChange={confirmFileChange}
       outletContext={outletContext}
     />
       {confirmation && <ConfirmActionModal {...confirmation} onCancel={() => setConfirmation(null)} onConfirm={runConfirmedAction} />}

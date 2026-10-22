@@ -9,7 +9,7 @@ function TabIcon({ type }) {
   return <svg viewBox="0 0 24 24"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>;
 }
 
-export default function DetailLayout({ data, activeTab, navigate, assistantOpen, onAssistantOpen, onAssistantClose, outletContext }) {
+export default function DetailLayout({ data, activeTab, navigate, assistantOpen, onAssistantOpen, onAssistantClose, onFileChange, outletContext }) {
   return (
     <main className={`preview-workspace detail-workspace${assistantOpen ? ' assistant-visible' : ''}`}>
       <header className="detail-page-header">
@@ -27,6 +27,12 @@ export default function DetailLayout({ data, activeTab, navigate, assistantOpen,
           <button className={activeTab === 'processing' ? 'active' : ''} onClick={() => navigate(ROUTES.processing)}><TabIcon type="processing"/>데이터 처리</button>
           <button className={activeTab === 'visualization' ? 'active' : ''} onClick={() => navigate(ROUTES.visualization)}><TabIcon type="visualization"/>시각화</button>
         </nav>
+        <div className="sidebar-footer-actions">
+          <button type="button" className="sidebar-action-button" onClick={onFileChange}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9A7 7 0 0 1 18 6l2 2M4 16l2 2a7 7 0 0 0 12.4-3"/></svg>
+            파일 변경
+          </button>
+        </div>
       </aside>
       <div className={`detail-layout${assistantOpen ? ' with-assistant' : ''}`}>
         <section className="preview-main detail-main"><Outlet context={outletContext} /></section>

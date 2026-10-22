@@ -6,6 +6,7 @@ import PreviewModal from '../pages/PreviewModal.jsx';
 import DetailLoadingPage from '../pages/DetailLoadingPage.jsx';
 import DetailPage from '../pages/DetailPage.jsx';
 import DetailTabView from '../pages/DetailTabView.jsx';
+import { useCsvPreview } from '../hooks/useCsvPreview.js';
 import { ROUTES } from './paths.js';
 
 const DATA_STORAGE_KEY = 'sift:uploaded-dataset';
@@ -33,13 +34,13 @@ export default function AppRoutes() {
   const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewData, setPreviewData] = useState(null);
+  const [serverPreviews, setServerPreviews] = useState(null);
   const [detailData, setDetailData] = useState(readSavedData);
   const [uploadError, setUploadError] = useState('');
   const [detailError, setDetailError] = useState('');
-  const [loadingPreview, setLoadingPreview] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [csvEncoding, setCsvEncoding] = useState('utf-8');
-  const [encodingLoading, setEncodingLoading] = useState(false);
+  const { mutateAsync: requestCsvPreview, isPending: loadingPreview } = useCsvPreview();
 
   useEffect(() => {
     if (!detailData) return;
@@ -50,9 +51,10 @@ export default function AppRoutes() {
     }
   }, [detailData]);
 
-  const chooseFile = async (file) => {
+  const chooseFile = async file => {
     if (!file) return;
     setPreviewData(null);
+    setServerPreviews(null);
     setDetailData(null);
     clearSavedData();
     setUploadError('');
@@ -66,43 +68,43 @@ export default function AppRoutes() {
       return;
     }
 
-    setLoadingPreview(true);
     try {
-      setCsvEncoding('utf-8');
-      const [buffer] = await Promise.all([
-        file.slice(0, Math.min(file.size, 512 * 1024)).arrayBuffer(),
-        new Promise((resolve) => window.setTimeout(resolve, 700)),
-      ]);
-      const text = new TextDecoder('utf-8').decode(buffer);
-      const sample = parseCsv(text, 10);
-      if (!sample || !sample.headers.length) {
-        setUploadError('CSV에서 미리보기 데이터를 찾지 못했어요. 파일 내용을 확인해 주세요.');
-        return;
-      }
+      const response = await requestCsvPreview(file);
+      const availableEncoding = [response.recommended_encoding, 'utf-8', 'cp949'].find(
+        encoding => response.previews?.[encoding]?.headers
+      );
+      if (!availableEncoding) throw new Error('No available CSV preview');
+
+      const sample = response.previews[availableEncoding];
+      setCsvEncoding(availableEncoding);
       setSelectedFile(file);
-      setPreviewData({ ...sample, fileName: file.name, fileSize: file.size });
+      setServerPreviews(response.previews);
+      setPreviewData({
+        ...sample,
+        totalRows: sample.rows.length,
+        fileName: response.filename,
+        fileSize: file.size,
+      });
     } catch {
-      setUploadError('파일을 읽지 못했어요. CSV 파일을 다시 확인해 주세요.');
-    } finally {
-      setLoadingPreview(false);
+      setUploadError('CSV 미리보기를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
     }
   };
 
-  const changeEncoding = async (encoding) => {
-    if (!selectedFile || encoding === csvEncoding) return;
+  const changeEncoding = encoding => {
+    if (!selectedFile || !serverPreviews || encoding === csvEncoding) return;
+    const sample = serverPreviews[encoding];
+    if (!sample?.headers) {
+      setDetailError(sample?.error ?? '선택한 인코딩으로 파일을 읽지 못했어요.');
+      return;
+    }
+
     setCsvEncoding(encoding);
     setDetailError('');
-    setEncodingLoading(true);
-    try {
-      const buffer = await selectedFile.slice(0, Math.min(selectedFile.size, 512 * 1024)).arrayBuffer();
-      const text = new TextDecoder(encoding).decode(buffer);
-      const sample = parseCsv(text, 10);
-      if (sample?.headers.length) setPreviewData((current) => current ? { ...current, ...sample } : current);
-    } catch {
-      setDetailError('선택한 인코딩으로 파일을 읽지 못했어요. 다른 인코딩을 선택해 주세요.');
-    } finally {
-      setEncodingLoading(false);
-    }
+    setPreviewData(current => ({
+      ...current,
+      ...sample,
+      totalRows: sample.rows.length,
+    }));
   };
 
   const loadDetails = async () => {
@@ -113,9 +115,10 @@ export default function AppRoutes() {
     try {
       const [text] = await Promise.all([
         selectedFile.arrayBuffer(),
-        new Promise((resolve) => window.setTimeout(resolve, 700)),
+        new Promise(resolve => window.setTimeout(resolve, 700)),
       ]);
-      const fullData = parseCsv(new TextDecoder(csvEncoding).decode(text));
+      const decoderEncoding = csvEncoding === 'cp949' ? 'euc-kr' : csvEncoding;
+      const fullData = parseCsv(new TextDecoder(decoderEncoding).decode(text));
       if (!fullData || !fullData.headers.length) throw new Error('empty CSV');
       setDetailData({ ...fullData, fileName: selectedFile.name, fileSize: selectedFile.size });
       navigate(ROUTES.details, { replace: true });
@@ -130,15 +133,64 @@ export default function AppRoutes() {
   const cancelPreview = () => {
     setSelectedFile(null);
     setPreviewData(null);
+    setServerPreviews(null);
+    setDetailError('');
+    navigate(ROUTES.upload, { replace: true });
+  };
+
+  const startOver = () => {
+    setSelectedFile(null);
+    setPreviewData(null);
+    setServerPreviews(null);
+    setDetailData(null);
+    clearSavedData();
+    setUploadError('');
     setDetailError('');
     navigate(ROUTES.upload, { replace: true });
   };
 
   return (
     <Routes>
-      <Route path={ROUTES.upload} element={<><UploadPage onChooseFile={chooseFile} loading={loadingPreview} error={uploadError} />{previewData && <PreviewModal data={previewData} error={detailError} loading={loadingDetail} encoding={csvEncoding} encodingLoading={encodingLoading} onEncodingChange={changeEncoding} onCancel={cancelPreview} onConfirm={loadDetails} />}</>} />
-      <Route path={ROUTES.loading} element={selectedFile && previewData ? <DetailLoadingPage /> : <Navigate to={ROUTES.upload} replace />} />
-      <Route path={ROUTES.details} element={detailData ? <DetailPage data={detailData} /> : <Navigate to={ROUTES.upload} replace />}>
+      <Route
+        path={ROUTES.upload}
+        element={
+          <>
+            <UploadPage onChooseFile={chooseFile} loading={loadingPreview} error={uploadError} />
+            {previewData && (
+              <PreviewModal
+                data={previewData}
+                error={detailError}
+                loading={loadingDetail}
+                encoding={csvEncoding}
+                encodingLoading={false}
+                onEncodingChange={changeEncoding}
+                onCancel={cancelPreview}
+                onConfirm={loadDetails}
+              />
+            )}
+          </>
+        }
+      />
+      <Route
+        path={ROUTES.loading}
+        element={
+          selectedFile && previewData ? (
+            <DetailLoadingPage />
+          ) : (
+            <Navigate to={ROUTES.upload} replace />
+          )
+        }
+      />
+      <Route
+        path={ROUTES.details}
+        element={
+          detailData ? (
+            <DetailPage data={detailData} onChangeFile={startOver} />
+          ) : (
+            <Navigate to={ROUTES.upload} replace />
+          )
+        }
+      >
         <Route index element={<DetailTabView view="overview" />} />
         <Route path="processing" element={<DetailTabView view="processing" />} />
         <Route path="visualization" element={<DetailTabView view="visualization" />} />
