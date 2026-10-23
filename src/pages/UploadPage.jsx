@@ -60,7 +60,6 @@ export default function UploadPage({ onChooseFile, loading, error }) {
             hidden
             onChange={event => choose(event.target.files?.[0])}
           />
-          <div className="file-details">최대 50MB</div>
           {error && (
             <div className="upload-error" role="alert">
               {error}

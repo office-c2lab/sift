@@ -62,11 +62,6 @@ export default function AppRoutes() {
       setUploadError('지원하지 않는 파일 형식이에요. CSV 파일을 선택해 주세요.');
       return;
     }
-    if (file.size > 50 * 1024 * 1024) {
-      setUploadError('파일 크기가 50MB를 초과했어요. 더 작은 CSV 파일을 선택해 주세요.');
-      return;
-    }
-
     try {
       const response = await requestCsvPreview(file);
       const availableEncoding = [response.recommended_encoding, 'utf-8', 'cp949'].find(
