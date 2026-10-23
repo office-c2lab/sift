@@ -1001,13 +1001,13 @@ export default function DetailPage({ data, onChangeFile }) {
       </section>
     ),
     processing: (
-      <section className="detail-view processing-view">
-        <DatasetDataCard
-          datasetId={data.datasetId}
-          headers={processingHeaders}
-          totalRows={overviewRowCount}
-        />
-      </section>
+      <DatasetDataCard
+        className="detail-view processing-view processing-data-card"
+        datasetId={data.datasetId}
+        headers={processingHeaders}
+        totalRows={overviewRowCount}
+        showTitle={false}
+      />
     ),
     merge: (
       <section className="detail-view processing-view">

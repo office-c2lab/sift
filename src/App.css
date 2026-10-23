@@ -4214,8 +4214,18 @@
   border-radius: 10px;
   background: #fff;
 }
-.processing-view > .overview-preview-card {
+.overview-preview-card.processing-data-card {
   flex: 1 1 0;
+  height: 100%;
+  padding: 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.overview-preview-card > header.is-titleless {
+  justify-content: flex-end;
+  margin-bottom: 6px;
+  padding: 0 4px;
 }
 .overview-panels .column-info-heading {
   flex: 0 0 auto;
