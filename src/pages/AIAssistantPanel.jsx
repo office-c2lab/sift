@@ -51,6 +51,8 @@ export default function AIAssistantPanel({ datasetId, onClose, closing = false }
   const messages = suggestionsQuery.data?.messages ?? [];
   const conversationId = suggestionsQuery.data?.conversation_id;
   const isResponding = chatMutation.isPending;
+  const isGeneratingSuggestions =
+    suggestionsQuery.isLoading || (suggestionsQuery.isFetching && messages.length === 0);
 
   useEffect(() => {
     const content = contentRef.current;
@@ -130,7 +132,7 @@ export default function AIAssistantPanel({ datasetId, onClose, closing = false }
             </p>
           </div>
 
-          {suggestionsQuery.isLoading && <SuggestionsLoading />}
+          {isGeneratingSuggestions && <SuggestionsLoading />}
 
           {suggestionsQuery.isError && (
             <div className="ai-load-error" role="alert">
@@ -141,7 +143,7 @@ export default function AIAssistantPanel({ datasetId, onClose, closing = false }
             </div>
           )}
 
-          {!suggestionsQuery.isLoading && !suggestionsQuery.isError && messages.length === 0 && (
+          {!isGeneratingSuggestions && !suggestionsQuery.isError && messages.length === 0 && (
             <div className="ai-suggestions">
               {suggestions.map(prompt => (
                 <button key={prompt} onClick={() => ask(prompt)} disabled={isResponding}>

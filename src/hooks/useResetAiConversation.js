@@ -8,12 +8,16 @@ export default function useResetAiConversation(datasetId) {
   return useMutation({
     mutationKey: ['ai-reset', datasetId],
     mutationFn: request => resetAiConversation(datasetId, request),
-    onSuccess: response => {
+    onSuccess: async response => {
       queryClient.setQueryData(aiSuggestionsQueryKey(datasetId), current => ({
         ...current,
+        questions: [],
         conversation_id: response.conversation_id,
         messages: response.messages ?? [],
       }));
+      await queryClient.invalidateQueries({
+        queryKey: aiSuggestionsQueryKey(datasetId),
+      });
     },
   });
 }
