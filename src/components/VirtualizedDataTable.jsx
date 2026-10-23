@@ -20,11 +20,8 @@ export default function VirtualizedDataTable({ datasetId, headers, totalRows, on
   const lastVisibleIndex = virtualRows.at(-1)?.index ?? Math.min(totalRows - 1, PAGE_SIZE - 1);
   const pageOffsets = useMemo(() => {
     if (totalRows <= 0) return [];
-    const firstPage = Math.max(0, Math.floor(firstVisibleIndex / PAGE_SIZE) - 1);
-    const lastPage = Math.min(
-      Math.ceil(totalRows / PAGE_SIZE) - 1,
-      Math.floor(lastVisibleIndex / PAGE_SIZE) + 1,
-    );
+    const firstPage = Math.floor(firstVisibleIndex / PAGE_SIZE);
+    const lastPage = Math.floor(lastVisibleIndex / PAGE_SIZE);
     return Array.from({ length: lastPage - firstPage + 1 }, (_, index) =>
       (firstPage + index) * PAGE_SIZE,
     );
