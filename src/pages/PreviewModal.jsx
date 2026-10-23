@@ -1,4 +1,5 @@
 import CustomDropdown from '../components/CustomDropdown.jsx';
+import OverflowTableContainer from '../components/OverflowTableContainer.jsx';
 import PreviewCell from '../components/PreviewCell.jsx';
 
 const ENCODINGS = [
@@ -47,7 +48,7 @@ export default function PreviewModal({
             />
           </div>
         </div>
-        <div className="modal-table-wrap">
+        <OverflowTableContainer className="modal-table-wrap">
           <table className="preview-table">
             <thead>
               <tr>
@@ -70,7 +71,7 @@ export default function PreviewModal({
               ))}
             </tbody>
           </table>
-        </div>
+        </OverflowTableContainer>
         {error && (
           <p className="modal-error" role="alert">
             {error}

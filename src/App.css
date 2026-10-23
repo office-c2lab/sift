@@ -3628,6 +3628,8 @@
   flex: 0 1 auto;
   overflow: auto;
   overscroll-behavior: contain;
+}
+.modal-table-wrap.has-overflow {
   padding: 0 10px 10px 0;
   scrollbar-gutter: stable;
   background: #f4f7f5;
@@ -3652,7 +3654,7 @@
 .modal-table-wrap::-webkit-scrollbar-thumb:hover {
   background: #91aa9a;
 }
-.detail-main .detail-table-wrap {
+.detail-main .detail-table-wrap.has-overflow {
   padding: 0 10px 10px 0;
   scrollbar-gutter: stable;
   background: #f4f7f5;
@@ -3673,6 +3675,29 @@
   background: #b8c8be;
 }
 .detail-main .detail-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #91aa9a;
+}
+.column-info-scroll.has-overflow {
+  padding: 0 10px 10px 0;
+  scrollbar-gutter: stable;
+  background: #f4f7f5;
+}
+.column-info-scroll .column-info-table {
+  background: #fff;
+}
+.column-info-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.column-info-scroll::-webkit-scrollbar-track {
+  background: #f4f7f5;
+}
+.column-info-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid #f4f7f5;
+  border-radius: 999px;
+  background: #b8c8be;
+}
+.column-info-scroll::-webkit-scrollbar-thumb:hover {
   background: #91aa9a;
 }
 .modal-file-toolbar {

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { TableProperties } from 'lucide-react';
+import OverflowTableContainer from '../components/OverflowTableContainer.jsx';
 
 export default function ColumnInfoCard({ data, layout = 'list' }) {
   const columns = useMemo(
@@ -30,7 +31,7 @@ export default function ColumnInfoCard({ data, layout = 'list' }) {
         <span className="column-count">{columns.length}개</span>
       </header>
       {layout === 'table' ? (
-        <div className="column-info-scroll">
+        <OverflowTableContainer className="column-info-scroll">
           <table className="column-info-table">
             <thead>
               <tr>
@@ -57,7 +58,7 @@ export default function ColumnInfoCard({ data, layout = 'list' }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </OverflowTableContainer>
       ) : (
         <div className="column-info-list">
           {columns.map((column, index) => (

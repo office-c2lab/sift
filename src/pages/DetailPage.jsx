@@ -4,6 +4,7 @@ import { formatFileSize } from '../utils/csv.js';
 import ColumnInfoCard from './ColumnInfoCard.jsx';
 import ConfirmActionModal from './ConfirmActionModal.jsx';
 import CustomDropdown from '../components/CustomDropdown.jsx';
+import OverflowTableContainer from '../components/OverflowTableContainer.jsx';
 import PreviewCell from '../components/PreviewCell.jsx';
 import DetailLayout from '../layouts/DetailLayout.jsx';
 import {
@@ -42,7 +43,7 @@ const CHART_COLORS = ['#20a96b', '#69c58f', '#328f67', '#a0d9b6', '#4eb884', '#1
 
 function DataTable({ headers, rows, indices = headers.map((_, index) => index) }) {
   return (
-    <div className="preview-table-wrap detail-table-wrap">
+    <OverflowTableContainer className="preview-table-wrap detail-table-wrap">
       <table className="preview-table">
         <thead>
           <tr>
@@ -65,7 +66,7 @@ function DataTable({ headers, rows, indices = headers.map((_, index) => index) }
           ))}
         </tbody>
       </table>
-    </div>
+    </OverflowTableContainer>
   );
 }
 
