@@ -1,4 +1,5 @@
 import CustomDropdown from '../components/CustomDropdown.jsx';
+import PreviewCell from '../components/PreviewCell.jsx';
 
 const ENCODINGS = [
   { value: 'utf-8', label: 'UTF-8' },
@@ -62,7 +63,7 @@ export default function PreviewModal({
                   <td>{rowIndex + 1}</td>
                   {data.headers.map((_, columnIndex) => (
                     <td key={columnIndex}>
-                      {row[columnIndex] || <span className="blank-value">—</span>}
+                      <PreviewCell value={row[columnIndex]} />
                     </td>
                   ))}
                 </tr>

@@ -1984,6 +1984,44 @@
   font-size: 11px;
   line-height: 1.6;
 }
+.ai-answer-loading {
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #607367;
+  background: #eef7f2;
+}
+.ai-loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.ai-loading-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #20a96b;
+  animation: ai-wait-dot 0.9s ease-in-out infinite;
+}
+.ai-loading-dots i:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.ai-loading-dots i:nth-child(3) {
+  animation-delay: 0.24s;
+}
+@keyframes ai-wait-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
 .ai-prompt-form {
   min-height: 58px;
   flex: 0 0 auto;
@@ -2007,6 +2045,10 @@
 }
 .ai-prompt-form input::placeholder {
   color: #a4afbb;
+}
+.ai-prompt-form input:disabled {
+  color: #8c9c92;
+  background: transparent;
 }
 .ai-prompt-form button {
   width: 31px;
@@ -2033,6 +2075,12 @@
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-loading-dots i {
+    animation: none;
+    opacity: 0.75;
+  }
 }
 @media (max-width: 1000px) {
   .detail-layout.with-assistant {

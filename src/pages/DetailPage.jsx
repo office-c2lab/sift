@@ -4,6 +4,7 @@ import { formatFileSize } from '../utils/csv.js';
 import ColumnInfoCard from './ColumnInfoCard.jsx';
 import ConfirmActionModal from './ConfirmActionModal.jsx';
 import CustomDropdown from '../components/CustomDropdown.jsx';
+import PreviewCell from '../components/PreviewCell.jsx';
 import DetailLayout from '../layouts/DetailLayout.jsx';
 import {
   ChartPie,
@@ -57,7 +58,7 @@ function DataTable({ headers, rows, indices = headers.map((_, index) => index) }
               <td>{rowIndex + 1}</td>
               {indices.map(columnIndex => (
                 <td key={columnIndex}>
-                  {row[columnIndex] || <span className="blank-value">—</span>}
+                  <PreviewCell value={row[columnIndex]} />
                 </td>
               ))}
             </tr>

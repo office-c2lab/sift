@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Send, Sparkles, X } from 'lucide-react';
 
 const suggestedQuestions = [
@@ -60,15 +60,44 @@ function answerQuestion(question, data) {
 export default function AIAssistantPanel({ data, onClose, closing = false }) {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState([]);
+  const [isResponding, setIsResponding] = useState(false);
+  const responseTimerRef = useRef(null);
+  const contentRef = useRef(null);
+
+  useEffect(
+    () => () => {
+      if (responseTimerRef.current) window.clearTimeout(responseTimerRef.current);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (content) content.scrollTo({ top: content.scrollHeight, behavior: 'smooth' });
+  }, [messages]);
 
   const ask = prompt => {
     const cleanPrompt = prompt.trim();
-    if (!cleanPrompt) return;
+    if (!cleanPrompt || isResponding) return;
+
+    const messageId = `${Date.now()}-${Math.random()}`;
     setMessages(current => [
       ...current,
-      { question: cleanPrompt, answer: answerQuestion(cleanPrompt, data) },
+      { id: messageId, question: cleanPrompt, answer: '', pending: true },
     ]);
     setQuestion('');
+    setIsResponding(true);
+
+    responseTimerRef.current = window.setTimeout(() => {
+      const answer = answerQuestion(cleanPrompt, data);
+      setMessages(current =>
+        current.map(message =>
+          message.id === messageId ? { ...message, answer, pending: false } : message,
+        ),
+      );
+      setIsResponding(false);
+      responseTimerRef.current = null;
+    }, 900);
   };
 
   return (
@@ -85,7 +114,7 @@ export default function AIAssistantPanel({ data, onClose, closing = false }) {
           <X aria-hidden="true" />
         </button>
       </header>
-      <div className="ai-panel-content">
+      <div className="ai-panel-content" ref={contentRef}>
         <div className="ai-intro">
           <strong>업로드한 데이터를 분석했어요.</strong>
           <p>
@@ -97,7 +126,7 @@ export default function AIAssistantPanel({ data, onClose, closing = false }) {
         {messages.length === 0 && (
           <div className="ai-suggestions">
             {suggestedQuestions.map(prompt => (
-              <button key={prompt} onClick={() => ask(prompt)}>
+              <button key={prompt} onClick={() => ask(prompt)} disabled={isResponding}>
                 {prompt}
                 <span>
                   <ArrowRight aria-hidden="true" />
@@ -106,10 +135,25 @@ export default function AIAssistantPanel({ data, onClose, closing = false }) {
             ))}
           </div>
         )}
-        {messages.map((message, index) => (
-          <div className="ai-message-pair" key={`${message.question}-${index}`}>
+        {messages.map(message => (
+          <div className="ai-message-pair" key={message.id}>
             <p className="ai-user-message">{message.question}</p>
-            <p className="ai-answer-message">{message.answer}</p>
+            {message.pending ? (
+              <div
+                className="ai-answer-message ai-answer-loading"
+                role="status"
+                aria-label="AI 응답 대기 중"
+              >
+                <span>답변을 준비하고 있어요</span>
+                <span className="ai-loading-dots" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              </div>
+            ) : (
+              <p className="ai-answer-message">{message.answer}</p>
+            )}
           </div>
         ))}
       </div>
@@ -123,10 +167,11 @@ export default function AIAssistantPanel({ data, onClose, closing = false }) {
         <input
           value={question}
           onChange={event => setQuestion(event.target.value)}
-          placeholder="데이터에 대해 질문하세요..."
+          placeholder={isResponding ? '답변을 준비하고 있어요...' : '데이터에 대해 질문하세요...'}
           aria-label="데이터에 대해 질문하세요"
+          disabled={isResponding}
         />
-        <button type="submit" aria-label="질문 보내기" disabled={!question.trim()}>
+        <button type="submit" aria-label="질문 보내기" disabled={isResponding || !question.trim()}>
           <Send aria-hidden="true" />
         </button>
       </form>
