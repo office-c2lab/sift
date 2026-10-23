@@ -40,3 +40,19 @@ export async function getChartData(datasetId, configuration) {
   );
   return data;
 }
+
+export async function getProcessingOptions(datasetId, signal) {
+  const { data } = await api.get(
+    `/datasets/${encodeURIComponent(datasetId)}/processing/options`,
+    { signal }
+  );
+  return data;
+}
+
+export async function applyProcessing(datasetId, request) {
+  const { data } = await api.post(
+    `/datasets/${encodeURIComponent(datasetId)}/processing`,
+    request
+  );
+  return data;
+}

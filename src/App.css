@@ -1440,7 +1440,7 @@
   width: 8px;
   height: 8px;
   border-radius: 3px;
-  background: #4388f5;
+  background: #20a96b;
 }
 .visual-chart {
   display: grid;
@@ -1916,6 +1916,33 @@
 .ai-panel-header button:hover {
   background: #f2f5f8;
   color: #526275;
+}
+.ai-panel-header-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.ai-panel-header .ai-new-chat-button {
+  width: auto;
+  padding: 0 8px;
+  display: flex;
+  grid-template: none;
+  gap: 5px;
+  color: #52705e;
+  background: #f2f7f4;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.ai-panel-header .ai-new-chat-button:hover {
+  color: #188951;
+  background: #e5f3ea;
+}
+.ai-panel-header .ai-new-chat-button svg {
+  width: 15px;
+  height: 15px;
 }
 .ai-panel-content {
   flex: 1;
@@ -3326,6 +3353,15 @@
   background: #e6f1e9;
   box-shadow: none;
 }
+.processing-api-status {
+  margin: 0;
+  color: #718278;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.processing-api-status.is-error {
+  color: #c44949;
+}
 .process-tool-cards > button > span {
   color: #d94b43;
   background: #fff1f0;
@@ -4177,6 +4213,9 @@
   border: 1px solid #e7edf1;
   border-radius: 10px;
   background: #fff;
+}
+.processing-view > .overview-preview-card {
+  flex: 1 1 0;
 }
 .overview-panels .column-info-heading {
   flex: 0 0 auto;

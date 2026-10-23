@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Send, Sparkles, X } from 'lucide-react';
+import { ArrowRight, MessageSquarePlus, Send, Sparkles, X } from 'lucide-react';
+import ConfirmActionModal from './ConfirmActionModal.jsx';
 
 const suggestedQuestions = [
   '성별 분포를 보여줘',
@@ -61,6 +62,7 @@ export default function AIAssistantPanel({ data, onClose, closing = false }) {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState([]);
   const [isResponding, setIsResponding] = useState(false);
+  const [newChatConfirmationOpen, setNewChatConfirmationOpen] = useState(false);
   const responseTimerRef = useRef(null);
   const contentRef = useRef(null);
 
@@ -73,8 +75,24 @@ export default function AIAssistantPanel({ data, onClose, closing = false }) {
 
   useEffect(() => {
     const content = contentRef.current;
-    if (content) content.scrollTo({ top: content.scrollHeight, behavior: 'smooth' });
+    if (content) {
+      content.scrollTo({
+        top: messages.length ? content.scrollHeight : 0,
+        behavior: 'smooth',
+      });
+    }
   }, [messages]);
+
+  const startNewChat = () => {
+    if (responseTimerRef.current) {
+      window.clearTimeout(responseTimerRef.current);
+      responseTimerRef.current = null;
+    }
+    setQuestion('');
+    setMessages([]);
+    setIsResponding(false);
+    setNewChatConfirmationOpen(false);
+  };
 
   const ask = prompt => {
     const cleanPrompt = prompt.trim();
@@ -101,18 +119,29 @@ export default function AIAssistantPanel({ data, onClose, closing = false }) {
   };
 
   return (
-    <aside
-      className={`ai-assistant-panel${closing ? ' is-closing' : ''}`}
-      aria-label="AI 데이터 어시스턴트"
-    >
+    <>
+      <aside
+        className={`ai-assistant-panel${closing ? ' is-closing' : ''}`}
+        aria-label="AI 데이터 어시스턴트"
+      >
       <header className="ai-panel-header">
         <span className="ai-spark">
           <Sparkles aria-hidden="true" />
         </span>
         <strong>AI 데이터 어시스턴트</strong>
-        <button aria-label="AI 어시스턴트 닫기" onClick={onClose}>
-          <X aria-hidden="true" />
-        </button>
+        <div className="ai-panel-header-actions">
+          <button
+            type="button"
+            className="ai-new-chat-button"
+            onClick={() => setNewChatConfirmationOpen(true)}
+          >
+            <MessageSquarePlus aria-hidden="true" />
+            <span>새 대화</span>
+          </button>
+          <button type="button" aria-label="AI 어시스턴트 닫기" onClick={onClose}>
+            <X aria-hidden="true" />
+          </button>
+        </div>
       </header>
       <div className="ai-panel-content" ref={contentRef}>
         <div className="ai-intro">
@@ -175,6 +204,16 @@ export default function AIAssistantPanel({ data, onClose, closing = false }) {
           <Send aria-hidden="true" />
         </button>
       </form>
-    </aside>
+      </aside>
+      {newChatConfirmationOpen && (
+        <ConfirmActionModal
+          title="새로운 대화를 시작할까요?"
+          description="현재 대화 내용이 모두 삭제되고 처음 화면으로 돌아갑니다."
+          confirmLabel="새 대화 시작"
+          onCancel={() => setNewChatConfirmationOpen(false)}
+          onConfirm={startNewChat}
+        />
+      )}
+    </>
   );
 }

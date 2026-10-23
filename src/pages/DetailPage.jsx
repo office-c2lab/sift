@@ -1,21 +1,23 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import useDatasetOverview from '../hooks/useDatasetOverview.js';
 import useChartData from '../hooks/useChartData.js';
 import useChartOptions from '../hooks/useChartOptions.js';
+import useApplyProcessing from '../hooks/useApplyProcessing.js';
+import useProcessingOptions from '../hooks/useProcessingOptions.js';
 import { formatFileSize, parseCsv } from '../utils/csv.js';
 import ColumnInfoCard from './ColumnInfoCard.jsx';
 import ConfirmActionModal from './ConfirmActionModal.jsx';
 import CustomDropdown from '../components/CustomDropdown.jsx';
+import DatasetDataCard from '../components/DatasetDataCard.jsx';
 import OverflowTableContainer from '../components/OverflowTableContainer.jsx';
 import PreviewCell from '../components/PreviewCell.jsx';
-import VirtualizedDataTable from '../components/VirtualizedDataTable.jsx';
 import DetailLayout from '../layouts/DetailLayout.jsx';
 import {
   ChartPie,
   Copy,
   Database,
-  Eye,
   FileUp,
   Merge,
   Rows3,
@@ -119,12 +121,6 @@ export default function DetailPage({ data, onChangeFile }) {
   const [chartAggregation, setChartAggregation] = useState('');
   const [renderedChart, setRenderedChart] = useState(null);
   const [assistantOpen, setAssistantOpen] = useState(true);
-  const [visibleRowRange, setVisibleRowRange] = useState({
-    start: 0,
-    end: 0,
-    isLoading: true,
-    hasError: false,
-  });
   const {
     data: datasetOverview,
     isLoading: overviewLoading,
@@ -136,6 +132,12 @@ export default function DetailPage({ data, onChangeFile }) {
     isError: chartOptionsError,
   } = useChartOptions(data.datasetId, chartType);
   const chartDataMutation = useChartData(data.datasetId);
+  const {
+    data: processingOptions,
+    isLoading: processingOptionsLoading,
+    isError: processingOptionsError,
+  } = useProcessingOptions(data.datasetId);
+  const processingMutation = useApplyProcessing(data.datasetId);
   const activeTab =
     location.pathname === '/details/visualization'
       ? 'visualization'
@@ -200,6 +202,13 @@ export default function DetailPage({ data, onChangeFile }) {
   const visibleColumns = processedHeaders
     .map((_, index) => index)
     .filter(index => !removedColumns.includes(index));
+  const processingColumns = useMemo(
+    () =>
+      [...(processingOptions?.columns ?? [])].sort(
+        (left, right) => left.column_index - right.column_index
+      ),
+    [processingOptions]
+  );
   const mergePrimaryOptions = visibleColumns.map(index => ({
     value: String(index),
     label: processedHeaders[index],
@@ -232,63 +241,72 @@ export default function DetailPage({ data, onChangeFile }) {
         : data.headers,
     [datasetOverview, data.headers]
   );
-  const selectedMissingVisibleColumns = selectedMissingColumns.filter(index =>
-    visibleColumns.includes(index)
-  );
-  const selectedDuplicateVisibleColumns = selectedDuplicateColumns.filter(index =>
-    visibleColumns.includes(index)
-  );
-  const missingRowsCount = processedRows.filter(row =>
-    selectedMissingVisibleColumns.some(index => String(row[index] ?? '').trim() === '')
-  ).length;
-  const duplicateRowsCount = (() => {
-    if (!selectedDuplicateVisibleColumns.length) return 0;
-    const seen = new Set();
-    return processedRows.reduce((count, row) => {
-      const key = JSON.stringify(selectedDuplicateVisibleColumns.map(index => row[index] ?? ''));
-      if (seen.has(key)) return count + 1;
-      seen.add(key);
-      return count;
-    }, 0);
-  })();
-  const removeMissingRows = () => {
-    if (!selectedMissingVisibleColumns.length || !missingRowsCount) return;
-    setConfirmation({
-      title: '선택한 컬럼의 결측 행을 제거할까요?',
-      description: `${selectedMissingVisibleColumns.length}개 컬럼을 확인해 결측치가 있는 ${missingRowsCount.toLocaleString()}개 행을 제거합니다.`,
-      confirmLabel: '행 제거',
-      onConfirm: () => {
-        setProcessingTool('missing');
+  const processingHeaders = processingColumns.length
+    ? processingColumns.map(column => column.name)
+    : overviewHeaders;
+  const applyServerProcessing = async (operation, columnIndices) => {
+    try {
+      const result = await processingMutation.mutateAsync({
+        operation,
+        column_indices: columnIndices,
+      });
+      const selectedSet = new Set(columnIndices);
+      if (operation === 'drop_columns') {
+        setProcessedHeaders(headers =>
+          headers.filter((_, index) => !selectedSet.has(index))
+        );
+        setProcessedRows(rows =>
+          rows.map(row => row.filter((_, index) => !selectedSet.has(index)))
+        );
+      } else if (operation === 'drop_missing') {
         setProcessedRows(rows =>
           rows.filter(row =>
-            selectedMissingVisibleColumns.every(index => String(row[index] ?? '').trim() !== '')
+            columnIndices.every(index => String(row[index] ?? '').trim() !== '')
           )
         );
-        setSelectedMissingColumns([]);
-      },
-    });
-  };
-  const removeDuplicateRows = () => {
-    if (!selectedDuplicateVisibleColumns.length || !duplicateRowsCount) return;
-    setConfirmation({
-      title: '선택한 컬럼을 기준으로 중복 행을 제거할까요?',
-      description: `${selectedDuplicateVisibleColumns.length}개 컬럼을 기준으로 ${duplicateRowsCount.toLocaleString()}개 중복 행을 제거합니다.`,
-      confirmLabel: '중복 제거',
-      onConfirm: () => {
-        setProcessingTool('duplicate');
+      } else {
         setProcessedRows(rows => {
           const seen = new Set();
           return rows.filter(row => {
-            const key = JSON.stringify(
-              selectedDuplicateVisibleColumns.map(index => row[index] ?? '')
-            );
+            const key = JSON.stringify(columnIndices.map(index => row[index] ?? ''));
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
           });
         });
-        setSelectedDuplicateColumns([]);
-      },
+      }
+      setRemovedColumns([]);
+      setSelectedRemovalColumns([]);
+      setSelectedMissingColumns([]);
+      setSelectedDuplicateColumns([]);
+      setRenderedChart(null);
+      const resultMessage =
+        result.removed_columns > 0
+          ? `${result.removed_columns.toLocaleString()}개 컬럼 제거 완료`
+          : `${result.removed_rows.toLocaleString()}개 행 제거 완료`;
+      toast.success(
+        `${resultMessage} · 현재 ${result.row_count.toLocaleString()}행 / ${result.column_count.toLocaleString()}열`
+      );
+    } catch {
+      // The mutation error is rendered in the processing controls.
+    }
+  };
+  const removeMissingRows = () => {
+    if (!selectedMissingColumns.length) return;
+    setConfirmation({
+      title: '선택한 컬럼의 결측 행을 제거할까요?',
+      description: `${selectedMissingColumns.length}개 컬럼을 확인해 결측치가 있는 행을 서버 데이터에서 제거합니다.`,
+      confirmLabel: '행 제거',
+      onConfirm: () => applyServerProcessing('drop_missing', selectedMissingColumns),
+    });
+  };
+  const removeDuplicateRows = () => {
+    if (!selectedDuplicateColumns.length) return;
+    setConfirmation({
+      title: '선택한 컬럼을 기준으로 중복 행을 제거할까요?',
+      description: `${selectedDuplicateColumns.length}개 컬럼을 기준으로 중복 행을 서버 데이터에서 제거합니다.`,
+      confirmLabel: '중복 제거',
+      onConfirm: () => applyServerProcessing('drop_duplicates', selectedDuplicateColumns),
     });
   };
   const removeSelectedColumns = () => {
@@ -296,18 +314,9 @@ export default function DetailPage({ data, onChangeFile }) {
     const count = selectedRemovalColumns.length;
     setConfirmation({
       title: '선택한 컬럼을 제거할까요?',
-      description: `${count}개 컬럼이 처리 결과에서 제거됩니다.`,
+      description: `${count}개 컬럼을 서버의 현재 데이터에서 제거합니다.`,
       confirmLabel: '컬럼 제거',
-      onConfirm: () => {
-        setRemovedColumns(current => [...new Set([...current, ...selectedRemovalColumns])]);
-        setSelectedMissingColumns(current =>
-          current.filter(index => !selectedRemovalColumns.includes(index))
-        );
-        setSelectedDuplicateColumns(current =>
-          current.filter(index => !selectedRemovalColumns.includes(index))
-        );
-        setSelectedRemovalColumns([]);
-      },
+      onConfirm: () => applyServerProcessing('drop_columns', selectedRemovalColumns),
     });
   };
   const chooseMergeFile = async file => {
@@ -456,8 +465,9 @@ export default function DetailPage({ data, onChangeFile }) {
         : '제거할 컬럼 선택';
   const processingActionDisabled =
     !selectedProcessingColumns.length ||
-    (processingTool === 'missing' && !missingRowsCount) ||
-    (processingTool === 'duplicate' && !duplicateRowsCount);
+    processingOptionsLoading ||
+    processingOptionsError ||
+    processingMutation.isPending;
   const runSelectedProcessingAction =
     processingTool === 'missing'
       ? removeMissingRows
@@ -465,11 +475,13 @@ export default function DetailPage({ data, onChangeFile }) {
         ? removeDuplicateRows
         : removeSelectedColumns;
   const processingActionLabel =
-    processingTool === 'missing'
-      ? `결측 행 ${missingRowsCount.toLocaleString()}개 제거`
-      : processingTool === 'duplicate'
-        ? `중복 행 ${duplicateRowsCount.toLocaleString()}개 제거`
-        : '선택한 컬럼 제거';
+    processingMutation.isPending
+      ? '데이터 처리 중'
+      : processingTool === 'missing'
+        ? '선택한 컬럼의 결측 행 제거'
+        : processingTool === 'duplicate'
+          ? '선택한 컬럼 기준 중복 제거'
+          : '선택한 컬럼 제거';
   const mergeControls = (
     <section className="sidebar-tools">
       <div className="data-merge-form">
@@ -635,32 +647,42 @@ export default function DetailPage({ data, onChangeFile }) {
         />
       </label>
       <div className="sidebar-column-list">
-        {processedHeaders
-          .map((header, index) => ({ header, index }))
-          .filter(
-            ({ header, index }) =>
-              !removedColumns.includes(index) &&
-              header.toLowerCase().includes(columnSearch.toLowerCase())
-          )
-          .map(({ header, index }) => (
-            <label key={`${header}-${index}`}>
+        {processingColumns
+          .filter(column => column.name.toLowerCase().includes(columnSearch.toLowerCase()))
+          .map(column => (
+            <label key={`${column.name}-${column.column_index}`}>
               <input
                 type="checkbox"
-                checked={selectedProcessingColumns.includes(index)}
+                checked={selectedProcessingColumns.includes(column.column_index)}
                 onChange={() =>
                   setSelectedProcessingColumns(current =>
-                    current.includes(index)
-                      ? current.filter(column => column !== index)
-                      : [...current, index]
+                    current.includes(column.column_index)
+                      ? current.filter(index => index !== column.column_index)
+                      : [...current, column.column_index]
                   )
                 }
               />
-              <span className="sidebar-column-name" title={header}>
-                {header}
+              <span className="sidebar-column-name" title={column.name}>
+                {column.name}
               </span>
             </label>
           ))}
       </div>
+      {processingOptionsLoading && (
+        <p className="processing-api-status" role="status">
+          처리 대상 컬럼을 불러오고 있어요.
+        </p>
+      )}
+      {processingOptionsError && (
+        <p className="processing-api-status is-error" role="alert">
+          처리 대상 컬럼을 불러오지 못했어요.
+        </p>
+      )}
+      {processingMutation.isError && (
+        <p className="processing-api-status is-error" role="alert">
+          데이터를 처리하지 못했어요. 다시 시도해 주세요.
+        </p>
+      )}
       <button
         className="remove-columns-button"
         type="button"
@@ -839,34 +861,11 @@ export default function DetailPage({ data, onChangeFile }) {
         </div>
         <div className="overview-panels">
           <ColumnInfoCard data={data} columns={datasetOverview?.columns} layout="table" />
-          <section className="overview-preview-card">
-            <header>
-              <div>
-                <span className="overview-preview-icon">
-                  <Eye aria-hidden="true" />
-                </span>
-                <h2>데이터</h2>
-              </div>
-              <div className="overview-row-actions">
-                <span>
-                  {visibleRowRange.isLoading
-                    ? '데이터 불러오는 중'
-                    : `${visibleRowRange.start.toLocaleString()}–${visibleRowRange.end.toLocaleString()} / ${overviewRowCount.toLocaleString()}행`}
-                </span>
-              </div>
-            </header>
-            {visibleRowRange.hasError && (
-              <p className="overview-row-error" role="alert">
-                일부 행을 불러오지 못했어요. 스크롤하면 다시 시도합니다.
-              </p>
-            )}
-            <VirtualizedDataTable
-              datasetId={data.datasetId}
-              headers={overviewHeaders}
-              totalRows={overviewRowCount}
-              onRangeChange={setVisibleRowRange}
-            />
-          </section>
+          <DatasetDataCard
+            datasetId={data.datasetId}
+            headers={overviewHeaders}
+            totalRows={overviewRowCount}
+          />
         </div>
       </section>
     ),
@@ -1002,6 +1001,15 @@ export default function DetailPage({ data, onChangeFile }) {
       </section>
     ),
     processing: (
+      <section className="detail-view processing-view">
+        <DatasetDataCard
+          datasetId={data.datasetId}
+          headers={processingHeaders}
+          totalRows={overviewRowCount}
+        />
+      </section>
+    ),
+    merge: (
       <section className="detail-view processing-view">
         <DataTable headers={processedHeaders} rows={visibleRows} indices={visibleColumns} />
       </section>

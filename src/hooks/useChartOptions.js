@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { getChartOptions } from '../api/datasets.js';
 
+export const chartOptionsQueryPrefix = datasetId => ['chart-options', datasetId];
 export const chartOptionsQueryKey = (datasetId, chartType) => [
-  'chart-options',
-  datasetId,
+  ...chartOptionsQueryPrefix(datasetId),
   chartType,
 ];
 

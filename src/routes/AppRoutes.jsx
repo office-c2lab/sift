@@ -300,7 +300,7 @@ export default function AppRoutes() {
         }
       >
         <Route index element={<DetailTabView view="overview" />} />
-        <Route path="merge" element={<DetailTabView view="processing" />} />
+        <Route path="merge" element={<DetailTabView view="merge" />} />
         <Route path="processing" element={<DetailTabView view="processing" />} />
         <Route path="visualization" element={<DetailTabView view="visualization" />} />
       </Route>
