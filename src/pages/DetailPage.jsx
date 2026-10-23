@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import useDatasetOverview from '../hooks/useDatasetOverview.js';
 import { formatFileSize } from '../utils/csv.js';
 import ColumnInfoCard from './ColumnInfoCard.jsx';
 import ConfirmActionModal from './ConfirmActionModal.jsx';
 import CustomDropdown from '../components/CustomDropdown.jsx';
 import OverflowTableContainer from '../components/OverflowTableContainer.jsx';
 import PreviewCell from '../components/PreviewCell.jsx';
+import VirtualizedDataTable from '../components/VirtualizedDataTable.jsx';
 import DetailLayout from '../layouts/DetailLayout.jsx';
 import {
   ChartPie,
@@ -98,6 +100,17 @@ export default function DetailPage({ data, onChangeFile }) {
   const [chartCategoryIndex, setChartCategoryIndex] = useState('');
   const [renderedChart, setRenderedChart] = useState(null);
   const [assistantOpen, setAssistantOpen] = useState(true);
+  const [visibleRowRange, setVisibleRowRange] = useState({
+    start: 0,
+    end: 0,
+    isLoading: true,
+    hasError: false,
+  });
+  const {
+    data: datasetOverview,
+    isLoading: overviewLoading,
+    isError: overviewError,
+  } = useDatasetOverview(data.datasetId);
   const activeTab =
     location.pathname === '/details/visualization'
       ? 'visualization'
@@ -159,6 +172,20 @@ export default function DetailPage({ data, onChangeFile }) {
   const missingValueCount = data.rows.reduce(
     (total, row) => total + row.filter(value => String(value ?? '').trim() === '').length,
     0
+  );
+  const overviewSummary = datasetOverview?.summary;
+  const overviewRowCount = overviewSummary?.row_count ?? data.totalRows;
+  const overviewColumnCount = overviewSummary?.column_count ?? data.headers.length;
+  const overviewMissingCount = overviewSummary?.missing_count ?? missingValueCount;
+  const overviewSize = overviewSummary?.size_bytes ?? data.fileSize;
+  const overviewHeaders = useMemo(
+    () =>
+      datasetOverview?.columns
+        ? [...datasetOverview.columns]
+            .sort((left, right) => left.column_index - right.column_index)
+            .map(column => column.name)
+        : data.headers,
+    [datasetOverview, data.headers]
   );
   const selectedMissingVisibleColumns = selectedMissingColumns.filter(index =>
     visibleColumns.includes(index)
@@ -570,6 +597,16 @@ export default function DetailPage({ data, onChangeFile }) {
   const outletContext = {
     overview: (
       <section className="detail-view overview-view">
+        {overviewLoading && (
+          <p className="overview-api-status" role="status">
+            데이터셋 개요를 불러오고 있어요.
+          </p>
+        )}
+        {overviewError && (
+          <p className="overview-api-status is-error" role="alert">
+            서버 개요를 불러오지 못해 현재 데이터로 표시하고 있어요.
+          </p>
+        )}
         <div className="overview-metrics">
           <article>
             <span className="overview-metric-icon blue">
@@ -577,7 +614,7 @@ export default function DetailPage({ data, onChangeFile }) {
             </span>
             <div>
               <small>총 행 수</small>
-              <strong>{data.totalRows.toLocaleString()}</strong>
+              <strong>{overviewRowCount.toLocaleString()}</strong>
             </div>
           </article>
           <article>
@@ -586,7 +623,7 @@ export default function DetailPage({ data, onChangeFile }) {
             </span>
             <div>
               <small>총 컬럼 수</small>
-              <strong>{data.headers.length.toLocaleString()}</strong>
+              <strong>{overviewColumnCount.toLocaleString()}</strong>
             </div>
           </article>
           <article>
@@ -595,7 +632,7 @@ export default function DetailPage({ data, onChangeFile }) {
             </span>
             <div>
               <small>결측치 수</small>
-              <strong>{missingValueCount.toLocaleString()}</strong>
+              <strong>{overviewMissingCount.toLocaleString()}</strong>
             </div>
           </article>
           <article>
@@ -604,12 +641,12 @@ export default function DetailPage({ data, onChangeFile }) {
             </span>
             <div>
               <small>데이터 용량</small>
-              <strong>{formatFileSize(data.fileSize)}</strong>
+              <strong>{formatFileSize(overviewSize)}</strong>
             </div>
           </article>
         </div>
         <div className="overview-panels">
-          <ColumnInfoCard data={data} layout="table" />
+          <ColumnInfoCard data={data} columns={datasetOverview?.columns} layout="table" />
           <section className="overview-preview-card">
             <header>
               <div>
@@ -618,8 +655,25 @@ export default function DetailPage({ data, onChangeFile }) {
                 </span>
                 <h2>데이터</h2>
               </div>
+              <div className="overview-row-actions">
+                <span>
+                  {visibleRowRange.isLoading
+                    ? '데이터 불러오는 중'
+                    : `${visibleRowRange.start.toLocaleString()}–${visibleRowRange.end.toLocaleString()} / ${overviewRowCount.toLocaleString()}행`}
+                </span>
+              </div>
             </header>
-            <DataTable headers={data.headers} rows={data.rows} />
+            {visibleRowRange.hasError && (
+              <p className="overview-row-error" role="alert">
+                일부 행을 불러오지 못했어요. 스크롤하면 다시 시도합니다.
+              </p>
+            )}
+            <VirtualizedDataTable
+              datasetId={data.datasetId}
+              headers={overviewHeaders}
+              totalRows={overviewRowCount}
+              onRangeChange={setVisibleRowRange}
+            />
           </section>
         </div>
       </section>

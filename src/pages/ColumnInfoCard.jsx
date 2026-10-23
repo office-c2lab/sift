@@ -2,8 +2,16 @@ import { useMemo } from 'react';
 import { TableProperties } from 'lucide-react';
 import OverflowTableContainer from '../components/OverflowTableContainer.jsx';
 
-export default function ColumnInfoCard({ data, layout = 'list' }) {
-  const columns = useMemo(
+const DATA_TYPE_LABELS = {
+  string: '문자열',
+  number: '숫자',
+  boolean: '불리언',
+  datetime: '날짜/시간',
+  unknown: '알 수 없음',
+};
+
+export default function ColumnInfoCard({ data, columns: apiColumns, layout = 'list' }) {
+  const localColumns = useMemo(
     () =>
       data.headers.map((name, index) => {
         const values = data.rows.map(row => String(row[index] ?? '').trim());
@@ -19,6 +27,16 @@ export default function ColumnInfoCard({ data, layout = 'list' }) {
         };
       }),
     [data]
+  );
+  const columns = useMemo(
+    () =>
+      apiColumns?.map(column => ({
+        name: column.name,
+        type: DATA_TYPE_LABELS[column.data_type] ?? column.data_type,
+        unique: column.unique_count,
+        missing: column.missing_count,
+      })) ?? localColumns,
+    [apiColumns, localColumns]
   );
 
   return (

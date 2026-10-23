@@ -1,6 +1,13 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import { createDataset } from '../api/datasets.js';
+import useCreateDataset from '../hooks/useCreateDataset.js';
+import useDatasetOverview, {
+  datasetOverviewQueryKey,
+} from '../hooks/useDatasetOverview.js';
+import useDatasetRowPages, {
+  datasetRowsQueryPrefix,
+} from '../hooks/useDatasetRowPages.js';
 import { parseCsv } from '../utils/csv.js';
 import UploadPage from '../pages/UploadPage.jsx';
 import PreviewModal from '../pages/PreviewModal.jsx';
@@ -11,6 +18,57 @@ import DetailTabView from '../pages/DetailTabView.jsx';
 const PREVIEW_ROW_COUNT = 10;
 const INITIAL_PREVIEW_BYTES = 256 * 1024;
 const MAX_PREVIEW_BYTES = 10 * 1024 * 1024;
+const DATASET_ID_STORAGE_KEY = 'databom.datasetId';
+
+function StoredDatasetDetail({ datasetId, onChangeFile }) {
+  const overviewQuery = useDatasetOverview(datasetId);
+  const [firstRowsQuery] = useDatasetRowPages(datasetId, [0]);
+
+  if (overviewQuery.isLoading || firstRowsQuery.isLoading) {
+    return (
+      <DetailLoadingPage
+        title="저장된 데이터셋을 불러오고 있어요"
+        description="데이터셋 개요와 행 데이터를 다시 조회하고 있습니다."
+      />
+    );
+  }
+
+  if (overviewQuery.isError || firstRowsQuery.isError || !overviewQuery.data) {
+    return (
+      <main className="detail-loading" role="alert">
+        <div className="detail-loading-logo" aria-label="DataBOM">
+          <img src="/logo.png" alt="" aria-hidden="true" />
+        </div>
+        <h1>저장된 데이터셋을 불러오지 못했어요</h1>
+        <p>데이터셋이 삭제되었거나 서버에 연결할 수 없습니다.</p>
+        <button className="confirm-button" type="button" onClick={onChangeFile}>
+          새 파일 선택하기
+        </button>
+      </main>
+    );
+  }
+
+  const overview = overviewQuery.data;
+  const headers = [...overview.columns]
+    .sort((left, right) => left.column_index - right.column_index)
+    .map(column => column.name);
+  const rows = firstRowsQuery.data?.rows ?? [];
+  const restoredData = {
+    headers,
+    rows,
+    totalRows: overview.summary.row_count,
+    fileName: overview.original_filename,
+    fileSize: overview.summary.size_bytes,
+    datasetId,
+    dataset: {
+      id: datasetId,
+      original_filename: overview.original_filename,
+      encoding: overview.encoding,
+    },
+  };
+
+  return <DetailPage data={restoredData} onChangeFile={onChangeFile} />;
+}
 
 function decodePreview(buffer, encoding, includeIncompleteLastRow) {
   try {
@@ -59,6 +117,11 @@ async function createLocalPreview(file) {
 
 export default function AppRoutes() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const createDatasetMutation = useCreateDataset();
+  const [storedDatasetId, setStoredDatasetId] = useState(() =>
+    window.localStorage.getItem(DATASET_ID_STORAGE_KEY)
+  );
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [localPreviews, setLocalPreviews] = useState(null);
@@ -136,9 +199,11 @@ export default function AppRoutes() {
       });
       const [fullData, dataset] = await Promise.all([
         parseFullFile,
-        createDataset(selectedFile, csvEncoding),
+        createDatasetMutation.mutateAsync({ file: selectedFile, encoding: csvEncoding }),
         new Promise(resolve => window.setTimeout(resolve, 700)),
       ]);
+      window.localStorage.setItem(DATASET_ID_STORAGE_KEY, dataset.id);
+      setStoredDatasetId(dataset.id);
       setDetailData({
         ...fullData,
         fileName: selectedFile.name,
@@ -175,6 +240,12 @@ export default function AppRoutes() {
   };
 
   const startOver = () => {
+    if (storedDatasetId) {
+      queryClient.removeQueries({ queryKey: datasetOverviewQueryKey(storedDatasetId) });
+      queryClient.removeQueries({ queryKey: datasetRowsQueryPrefix(storedDatasetId) });
+    }
+    window.localStorage.removeItem(DATASET_ID_STORAGE_KEY);
+    setStoredDatasetId(null);
     setSelectedFile(null);
     setPreviewData(null);
     setLocalPreviews(null);
@@ -221,6 +292,8 @@ export default function AppRoutes() {
         element={
           detailData ? (
             <DetailPage data={detailData} onChangeFile={startOver} />
+          ) : storedDatasetId ? (
+            <StoredDatasetDetail datasetId={storedDatasetId} onChangeFile={startOver} />
           ) : (
             <Navigate to="/" replace />
           )
