@@ -7,6 +7,7 @@
 .preview-workspace.detail-workspace {
   padding-left: 0;
   padding-top: 0;
+  padding-right: 0;
   padding-bottom: 0;
 }
 
@@ -24,6 +25,7 @@
   border-radius: 0;
   background: #fff;
   box-shadow: none;
+  animation: detail-sidebar-in 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .detail-workspace .sidebar-ai-toggle {
@@ -83,12 +85,20 @@
   height: 20px;
 }
 
+.detail-workspace .preview-sidebar > .detail-tabs button .detail-tab-chevron {
+  width: 17px;
+  height: 17px;
+  margin-left: auto;
+  transition: transform 260ms ease;
+}
+
 .detail-workspace .detail-layout {
   grid-column: 2;
   grid-row: 1;
   min-width: 0;
   min-height: 0;
   height: auto;
+  margin-block: 14px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
@@ -117,8 +127,75 @@
   min-height: 0;
   padding: 18px 14px;
   overflow-y: auto;
+  overflow-x: hidden;
   border-right: 1px solid #e2e9e4;
   background: #fff;
+  animation: detail-tool-sidebar-in 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.detail-workspace .detail-tool-sidebar.is-closing {
+  opacity: 0;
+  transform: translateX(-12px);
+  transition:
+    opacity 720ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 720ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: none;
+}
+
+.detail-workspace .detail-tool-sidebar.is-switching {
+  animation-duration: 260ms;
+}
+
+.detail-workspace .detail-tool-sidebar.is-closing.is-switching {
+  transition-duration: 260ms;
+}
+
+.detail-workspace > .ai-assistant-panel {
+  animation: detail-assistant-in 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes detail-sidebar-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes detail-tool-sidebar-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes detail-assistant-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-workspace.detail-workspace {
+    transition: none !important;
+  }
+  .detail-workspace .preview-sidebar,
+  .detail-workspace .detail-tool-sidebar,
+  .detail-workspace > .ai-assistant-panel {
+    animation: none;
+  }
 }
 
 .detail-workspace .detail-tool-sidebar .sidebar-tools,
@@ -188,33 +265,46 @@
   }
 
   .preview-workspace.detail-workspace {
+    --layout-motion-duration: 720ms;
     display: grid;
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 220px 0px 14px minmax(0, 1fr) 0px 0px;
     grid-template-rows: minmax(0, 1fr);
-    column-gap: 14px;
+    column-gap: 0;
+    transition: grid-template-columns var(--layout-motion-duration)
+      cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .preview-workspace.detail-workspace.assistant-visible {
+    --layout-motion-duration: 800ms;
     display: grid;
-    grid-template-columns: 220px minmax(0, 1fr) 320px;
+    grid-template-columns: 220px 0px 14px minmax(0, 1fr) 14px 320px;
     grid-template-rows: minmax(0, 1fr);
-    column-gap: 14px;
+    column-gap: 0;
+  }
+
+  .preview-workspace.detail-workspace.is-tool-switching {
+    --layout-motion-duration: 260ms;
   }
 
   .preview-workspace.detail-workspace.assistant-visible > .ai-assistant-panel {
-    grid-column: 3;
+    grid-column: 6;
     grid-row: 1;
-    height: auto;
+    height: 100%;
     min-height: 0;
+    border: 0;
+    border-left: 1px solid #e2e9e4;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .preview-workspace.detail-workspace > .ai-assistant-panel {
-    height: auto;
+    height: 100%;
     min-height: 0;
   }
 
-  .preview-workspace.detail-workspace.assistant-visible .detail-layout {
-    grid-column: 2;
+  .preview-workspace.detail-workspace > .detail-layout,
+  .preview-workspace.detail-workspace.assistant-visible > .detail-layout {
+    grid-column: 4;
     grid-row: 1;
     grid-template-columns: minmax(0, 1fr);
     height: auto;
@@ -223,7 +313,7 @@
   }
 
   .preview-workspace.detail-workspace.has-tool-sidebar {
-    grid-template-columns: 220px 290px 14px minmax(0, 1fr);
+    grid-template-columns: 220px 290px 14px minmax(0, 1fr) 0px 0px;
     column-gap: 0;
   }
 
@@ -268,6 +358,23 @@
   .preview-workspace.detail-workspace.assistant-visible > .ai-assistant-panel {
     grid-column: auto;
     grid-row: auto;
+  }
+
+  .preview-workspace.detail-workspace > .ai-assistant-panel {
+    position: fixed;
+    z-index: 30;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(320px, 100vw);
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    margin: 0;
+    border: 0;
+    border-left: 1px solid #e2e9e4;
+    border-radius: 0;
+    box-shadow: -10px 0 30px #1c362526;
   }
 
   .detail-workspace .preview-sidebar {
