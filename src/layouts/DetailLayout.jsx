@@ -89,8 +89,20 @@ export default function DetailLayout({
             aria-expanded={assistantOpen}
             aria-label={assistantOpen ? 'AI 어시스턴트 닫기' : 'AI 어시스턴트 열기'}
           >
-            <Sparkles aria-hidden="true" />
-            <span>AI에게 물어보기</span>
+            <span className="detail-header-ai-icon">
+              <Sparkles aria-hidden="true" />
+            </span>
+            <span className="detail-header-ai-copy">
+              <strong>AI 어시스턴트</strong>
+              <small>{assistantOpen ? '대화창이 열려 있어요' : '데이터에 질문하기'}</small>
+            </span>
+            <span className="detail-header-ai-action">
+              {assistantOpen ? (
+                <ChevronRight aria-hidden="true" />
+              ) : (
+                <ChevronLeft aria-hidden="true" />
+              )}
+            </span>
           </button>
         </div>
       </header>
