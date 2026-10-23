@@ -36,8 +36,10 @@ export function parseCsv(text, maxDataRows = Infinity) {
   }
   if (!allRows.length) return null;
 
-  const headers = allRows[0].map((value, index) => value.replace(/^\uFEFF/, '') || `열 ${index + 1}`);
-  const rows = allRows.slice(1).map((values) => headers.map((_, index) => values[index] ?? ''));
+  const headers = allRows[0].map(
+    (value, index) => value.replace(/^\uFEFF/, '') || `열 ${index + 1}`
+  );
+  const rows = allRows.slice(1).map(values => headers.map((_, index) => values[index] ?? ''));
   return { headers, rows, totalRows: rows.length };
 }
 

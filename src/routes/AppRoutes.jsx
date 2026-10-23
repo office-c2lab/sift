@@ -7,7 +7,6 @@ import DetailLoadingPage from '../pages/DetailLoadingPage.jsx';
 import DetailPage from '../pages/DetailPage.jsx';
 import DetailTabView from '../pages/DetailTabView.jsx';
 import { useCsvPreview } from '../hooks/useCsvPreview.js';
-import { ROUTES } from './paths.js';
 
 const DATA_STORAGE_KEY = 'sift:uploaded-dataset';
 
@@ -111,7 +110,7 @@ export default function AppRoutes() {
     if (!selectedFile) return;
     setLoadingDetail(true);
     setDetailError('');
-    navigate(ROUTES.loading);
+    navigate('/loading');
     try {
       const [text] = await Promise.all([
         selectedFile.arrayBuffer(),
@@ -121,10 +120,10 @@ export default function AppRoutes() {
       const fullData = parseCsv(new TextDecoder(decoderEncoding).decode(text));
       if (!fullData || !fullData.headers.length) throw new Error('empty CSV');
       setDetailData({ ...fullData, fileName: selectedFile.name, fileSize: selectedFile.size });
-      navigate(ROUTES.details, { replace: true });
+      navigate('/details', { replace: true });
     } catch {
       setDetailError('파일을 다시 읽지 못했어요. CSV 파일을 확인하고 다시 시도해 주세요.');
-      navigate(ROUTES.upload, { replace: true });
+      navigate('/', { replace: true });
     } finally {
       setLoadingDetail(false);
     }
@@ -135,7 +134,7 @@ export default function AppRoutes() {
     setPreviewData(null);
     setServerPreviews(null);
     setDetailError('');
-    navigate(ROUTES.upload, { replace: true });
+    navigate('/', { replace: true });
   };
 
   const startOver = () => {
@@ -146,13 +145,13 @@ export default function AppRoutes() {
     clearSavedData();
     setUploadError('');
     setDetailError('');
-    navigate(ROUTES.upload, { replace: true });
+    navigate('/', { replace: true });
   };
 
   return (
     <Routes>
       <Route
-        path={ROUTES.upload}
+        path="/"
         element={
           <>
             <UploadPage onChooseFile={chooseFile} loading={loadingPreview} error={uploadError} />
@@ -172,22 +171,22 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path={ROUTES.loading}
+        path="/loading"
         element={
           selectedFile && previewData ? (
             <DetailLoadingPage />
           ) : (
-            <Navigate to={ROUTES.upload} replace />
+            <Navigate to="/" replace />
           )
         }
       />
       <Route
-        path={ROUTES.details}
+        path="/details"
         element={
           detailData ? (
             <DetailPage data={detailData} onChangeFile={startOver} />
           ) : (
-            <Navigate to={ROUTES.upload} replace />
+            <Navigate to="/" replace />
           )
         }
       >
@@ -195,7 +194,7 @@ export default function AppRoutes() {
         <Route path="processing" element={<DetailTabView view="processing" />} />
         <Route path="visualization" element={<DetailTabView view="visualization" />} />
       </Route>
-      <Route path="*" element={<Navigate to={ROUTES.upload} replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
