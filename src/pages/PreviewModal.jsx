@@ -83,8 +83,7 @@ export default function PreviewModal({
           <button className="confirm-button" disabled={loading} onClick={onConfirm}>
             {loading ? (
               <>
-                <span className="loading-spinner modal-spinner" aria-hidden="true" /> 전체 데이터
-                읽는 중
+                <span className="loading-spinner modal-spinner" aria-hidden="true" /> 데이터셋 생성 중
               </>
             ) : (
               '확인하고 상세 보기'

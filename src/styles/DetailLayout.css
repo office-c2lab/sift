@@ -282,8 +282,10 @@
 }
 
 .detail-workspace .detail-header-ai-toggle[aria-expanded='true'] {
-  border-color: #91d2a8;
-  background: #f0faf3;
+  border-color: #56b978;
+  color: #176d43;
+  background: #dcefe3;
+  box-shadow: 0 4px 12px #1f744326;
 }
 
 .detail-workspace .detail-header-ai-icon {
@@ -301,6 +303,12 @@
 .detail-workspace .detail-header-ai-icon svg {
   width: 18px;
   height: 18px;
+}
+
+.detail-workspace .detail-header-ai-toggle .text-bold {
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.3;
 }
 
 .detail-workspace .detail-header-ai-copy {

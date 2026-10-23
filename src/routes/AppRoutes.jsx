@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { createDataset } from '../api/datasets.js';
 import { parseCsv } from '../utils/csv.js';
 import UploadPage from '../pages/UploadPage.jsx';
 import PreviewModal from '../pages/PreviewModal.jsx';
@@ -127,17 +128,38 @@ export default function AppRoutes() {
     setDetailError('');
     navigate('/loading');
     try {
-      const [text] = await Promise.all([
-        selectedFile.arrayBuffer(),
+      const parseFullFile = selectedFile.arrayBuffer().then(buffer => {
+        const decoderEncoding = csvEncoding === 'cp949' ? 'euc-kr' : csvEncoding;
+        const parsed = parseCsv(new TextDecoder(decoderEncoding).decode(buffer));
+        if (!parsed || !parsed.headers.length) throw new Error('empty CSV');
+        return parsed;
+      });
+      const [fullData, dataset] = await Promise.all([
+        parseFullFile,
+        createDataset(selectedFile, csvEncoding),
         new Promise(resolve => window.setTimeout(resolve, 700)),
       ]);
-      const decoderEncoding = csvEncoding === 'cp949' ? 'euc-kr' : csvEncoding;
-      const fullData = parseCsv(new TextDecoder(decoderEncoding).decode(text));
-      if (!fullData || !fullData.headers.length) throw new Error('empty CSV');
-      setDetailData({ ...fullData, fileName: selectedFile.name, fileSize: selectedFile.size });
+      setDetailData({
+        ...fullData,
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+        datasetId: dataset.id,
+        dataset,
+      });
       navigate('/details', { replace: true });
-    } catch {
-      setDetailError('파일을 다시 읽지 못했어요. CSV 파일을 확인하고 다시 시도해 주세요.');
+    } catch (error) {
+      const serverDetail = error.response?.data?.detail;
+      const serverMessage =
+        typeof serverDetail === 'string'
+          ? serverDetail
+          : Array.isArray(serverDetail)
+            ? serverDetail[0]?.msg
+            : null;
+      setDetailError(
+        serverMessage
+          ? `데이터셋을 생성하지 못했어요. ${serverMessage}`
+          : '데이터셋을 생성하지 못했어요. CSV 파일과 서버 연결을 확인한 뒤 다시 시도해 주세요.',
+      );
       navigate('/', { replace: true });
     } finally {
       setLoadingDetail(false);

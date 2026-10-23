@@ -3628,10 +3628,52 @@
   flex: 0 1 auto;
   overflow: auto;
   overscroll-behavior: contain;
+  padding: 0 10px 10px 0;
+  scrollbar-gutter: stable;
+  background: #f4f7f5;
 }
 .modal-table-wrap .preview-table {
   width: max-content;
   min-width: 100%;
+  background: #fff;
+}
+.modal-table-wrap::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.modal-table-wrap::-webkit-scrollbar-track {
+  background: #f4f7f5;
+}
+.modal-table-wrap::-webkit-scrollbar-thumb {
+  border: 2px solid #f4f7f5;
+  border-radius: 999px;
+  background: #b8c8be;
+}
+.modal-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #91aa9a;
+}
+.detail-main .detail-table-wrap {
+  padding: 0 10px 10px 0;
+  scrollbar-gutter: stable;
+  background: #f4f7f5;
+}
+.detail-main .detail-table-wrap .preview-table {
+  background: #fff;
+}
+.detail-main .detail-table-wrap::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.detail-main .detail-table-wrap::-webkit-scrollbar-track {
+  background: #f4f7f5;
+}
+.detail-main .detail-table-wrap::-webkit-scrollbar-thumb {
+  border: 2px solid #f4f7f5;
+  border-radius: 999px;
+  background: #b8c8be;
+}
+.detail-main .detail-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #91aa9a;
 }
 .modal-file-toolbar {
   min-width: 0;

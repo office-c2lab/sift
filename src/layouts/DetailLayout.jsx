@@ -94,7 +94,7 @@ export default function DetailLayout({
             </span>
             <span className="detail-header-ai-copy">
               <strong>AI 어시스턴트</strong>
-              <small>{assistantOpen ? '대화창이 열려 있어요' : '데이터에 질문하기'}</small>
+              <small>{assistantOpen ? '대화창이 열려 있어요' : '데이터에 대해 질문하기'}</small>
             </span>
             <span className="detail-header-ai-action">
               {assistantOpen ? (

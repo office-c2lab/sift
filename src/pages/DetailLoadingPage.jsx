@@ -5,8 +5,8 @@ export default function DetailLoadingPage() {
         <img src="/logo.png" alt="" aria-hidden="true" />
       </div>
       <span className="detail-loading-spinner" />
-      <h1>상세 데이터를 불러오고 있어요</h1>
-      <p>CSV 전체 내용을 읽고 있습니다. 잠시만 기다려 주세요.</p>
+      <h1>데이터셋을 생성하고 있어요</h1>
+      <p>CSV 파일을 업로드하고 상세 데이터를 준비하고 있습니다.</p>
     </main>
   );
 }
