@@ -20,7 +20,7 @@ function TabIcon({ type }) {
 }
 
 const TOOL_SIDEBAR_DURATION = 720;
-const TOOL_SIDEBAR_SWAP_DURATION = 260;
+const ASSISTANT_DURATION = 800;
 
 export default function DetailLayout({
   data,
@@ -41,47 +41,43 @@ export default function DetailLayout({
   );
   const visibleToolTabRef = useRef(visibleToolTab);
   const [toolSidebarOpen, setToolSidebarOpen] = useState(Boolean(sidebarContent));
-  const [fastToolTransition, setFastToolTransition] = useState(false);
+  const [assistantMounted, setAssistantMounted] = useState(assistantOpen);
+  const [assistantClosing, setAssistantClosing] = useState(false);
 
   useEffect(() => {
-    let swapTimer;
-    let openTimer;
-    let resetTimer;
+    let closeTimer;
 
     if (!hasSidebarContent) {
-      setFastToolTransition(false);
       setToolSidebarOpen(false);
-      swapTimer = window.setTimeout(() => {
+      closeTimer = window.setTimeout(() => {
         visibleToolTabRef.current = null;
         setVisibleToolTab(null);
       }, TOOL_SIDEBAR_DURATION);
-    } else if (visibleToolTabRef.current === activeTab) {
-      setFastToolTransition(false);
-      setToolSidebarOpen(true);
     } else {
-      const isToolTabSwap = Boolean(visibleToolTabRef.current);
-      setFastToolTransition(isToolTabSwap);
-      setToolSidebarOpen(false);
-      const closeDelay = isToolTabSwap ? TOOL_SIDEBAR_SWAP_DURATION : 0;
-      swapTimer = window.setTimeout(() => {
-        visibleToolTabRef.current = activeTab;
-        setVisibleToolTab(activeTab);
-        openTimer = window.setTimeout(() => setToolSidebarOpen(true), 30);
-        if (isToolTabSwap) {
-          resetTimer = window.setTimeout(
-            () => setFastToolTransition(false),
-            TOOL_SIDEBAR_SWAP_DURATION + 30
-          );
-        }
-      }, closeDelay);
+      visibleToolTabRef.current = activeTab;
+      setVisibleToolTab(activeTab);
+      setToolSidebarOpen(true);
     }
 
-    return () => {
-      window.clearTimeout(swapTimer);
-      window.clearTimeout(openTimer);
-      window.clearTimeout(resetTimer);
-    };
+    return () => window.clearTimeout(closeTimer);
   }, [activeTab, hasSidebarContent]);
+
+  useEffect(() => {
+    let closeTimer;
+
+    if (assistantOpen) {
+      setAssistantMounted(true);
+      setAssistantClosing(false);
+    } else if (assistantMounted) {
+      setAssistantClosing(true);
+      closeTimer = window.setTimeout(() => {
+        setAssistantMounted(false);
+        setAssistantClosing(false);
+      }, ASSISTANT_DURATION);
+    }
+
+    return () => window.clearTimeout(closeTimer);
+  }, [assistantOpen, assistantMounted]);
 
   const visibleSidebarContent = visibleToolTab
     ? sidebarContentByTab.current[visibleToolTab]
@@ -94,7 +90,11 @@ export default function DetailLayout({
     );
   const openOrToggleToolTab = (tab, path) => {
     if (activeTab === tab) {
-      setToolSidebarOpen(current => !current);
+      if (toolSidebarOpen) {
+        setToolSidebarOpen(false);
+      } else {
+        setToolSidebarOpen(true);
+      }
       return;
     }
     navigate(path);
@@ -102,7 +102,7 @@ export default function DetailLayout({
 
   return (
     <main
-      className={`preview-workspace detail-workspace${assistantOpen ? ' assistant-visible' : ''}${toolSidebarOpen ? ' has-tool-sidebar' : ''}${fastToolTransition ? ' is-tool-switching' : ''}`}
+      className={`preview-workspace detail-workspace${assistantOpen ? ' assistant-visible' : ''}${assistantClosing ? ' assistant-closing' : ''}${toolSidebarOpen ? ' has-tool-sidebar' : ''}${visibleSidebarContent && !toolSidebarOpen ? ' tool-sidebar-closing' : ''}`}
     >
       <aside className="preview-sidebar">
         <section className="sidebar-dataset-summary" aria-label="업로드한 CSV 정보">
@@ -120,15 +120,6 @@ export default function DetailLayout({
             데이터 개요
           </button>
           <button
-            className={activeTab === 'processing' ? 'active' : ''}
-            onClick={() => openOrToggleToolTab('processing', '/details/processing')}
-            aria-expanded={activeTab === 'processing' && toolSidebarOpen}
-          >
-            <TabIcon type="processing" />
-            데이터 처리
-            {toolTabChevron('processing')}
-          </button>
-          <button
             className={activeTab === 'visualization' ? 'active' : ''}
             onClick={() => openOrToggleToolTab('visualization', '/details/visualization')}
             aria-expanded={activeTab === 'visualization' && toolSidebarOpen}
@@ -136,6 +127,15 @@ export default function DetailLayout({
             <TabIcon type="visualization" />
             시각화
             {toolTabChevron('visualization')}
+          </button>
+          <button
+            className={activeTab === 'processing' ? 'active' : ''}
+            onClick={() => openOrToggleToolTab('processing', '/details/processing')}
+            aria-expanded={activeTab === 'processing' && toolSidebarOpen}
+          >
+            <TabIcon type="processing" />
+            데이터 처리
+            {toolTabChevron('processing')}
           </button>
         </nav>
         <div className="sidebar-footer-actions">
@@ -156,8 +156,7 @@ export default function DetailLayout({
       </aside>
       {visibleSidebarContent && (
         <aside
-          className={`detail-tool-sidebar${toolSidebarOpen ? '' : ' is-closing'}${fastToolTransition ? ' is-switching' : ''}`}
-          key={visibleToolTab}
+          className={`detail-tool-sidebar${toolSidebarOpen ? '' : ' is-closing'}`}
         >
           {visibleSidebarContent}
         </aside>
@@ -167,7 +166,9 @@ export default function DetailLayout({
           <Outlet context={outletContext} />
         </section>
       </div>
-      {assistantOpen && <AIAssistantPanel data={data} onClose={onAssistantClose} />}
+      {assistantMounted && (
+        <AIAssistantPanel data={data} onClose={onAssistantClose} closing={assistantClosing} />
+      )}
     </main>
   );
 }

@@ -57,7 +57,7 @@ function answerQuestion(question, data) {
   return `업로드한 데이터는 ${data.totalRows.toLocaleString()}개 행, ${data.headers.length}개 컬럼입니다. 컬럼에 맞는 질문을 선택하면 빠르게 요약해 드릴게요.`;
 }
 
-export default function AIAssistantPanel({ data, onClose }) {
+export default function AIAssistantPanel({ data, onClose, closing = false }) {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState([]);
 
@@ -72,7 +72,10 @@ export default function AIAssistantPanel({ data, onClose }) {
   };
 
   return (
-    <aside className="ai-assistant-panel" aria-label="AI 데이터 어시스턴트">
+    <aside
+      className={`ai-assistant-panel${closing ? ' is-closing' : ''}`}
+      aria-label="AI 데이터 어시스턴트"
+    >
       <header className="ai-panel-header">
         <span className="ai-spark">
           <Sparkles aria-hidden="true" />

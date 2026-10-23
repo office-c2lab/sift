@@ -80,6 +80,8 @@ export default function DetailPage({ data, onChangeFile }) {
   const location = useLocation();
   const [columnSearch, setColumnSearch] = useState('');
   const [selectedRemovalColumns, setSelectedRemovalColumns] = useState([]);
+  const [selectedMissingColumns, setSelectedMissingColumns] = useState([]);
+  const [selectedDuplicateColumns, setSelectedDuplicateColumns] = useState([]);
   const [removedColumns, setRemovedColumns] = useState([]);
   const [processedHeaders, setProcessedHeaders] = useState(data.headers);
   const [processedRows, setProcessedRows] = useState(data.rows);
@@ -152,36 +154,64 @@ export default function DetailPage({ data, onChangeFile }) {
     (total, row) => total + row.filter(value => String(value ?? '').trim() === '').length,
     0
   );
+  const selectedMissingVisibleColumns = selectedMissingColumns.filter(index =>
+    visibleColumns.includes(index)
+  );
+  const selectedDuplicateVisibleColumns = selectedDuplicateColumns.filter(index =>
+    visibleColumns.includes(index)
+  );
   const missingRowsCount = processedRows.filter(row =>
-    row.some(value => String(value ?? '').trim() === '')
+    selectedMissingVisibleColumns.some(index => String(row[index] ?? '').trim() === '')
   ).length;
-  const duplicateRowsCount =
-    processedRows.length - new Set(processedRows.map(row => JSON.stringify(row))).size;
+  const duplicateRowsCount = (() => {
+    if (!selectedDuplicateVisibleColumns.length) return 0;
+    const seen = new Set();
+    return processedRows.reduce((count, row) => {
+      const key = JSON.stringify(selectedDuplicateVisibleColumns.map(index => row[index] ?? ''));
+      if (seen.has(key)) return count + 1;
+      seen.add(key);
+      return count;
+    }, 0);
+  })();
   const removeMissingRows = () => {
-    if (!missingRowsCount) return;
+    if (!selectedMissingVisibleColumns.length || !missingRowsCount) return;
     setConfirmation({
-      title: '결측치가 포함된 행을 제거할까요?',
-      description: `${missingRowsCount.toLocaleString()}개 행이 제거됩니다. 이 작업은 현재 데이터 처리 결과에 반영됩니다.`,
+      title: '선택한 컬럼의 결측 행을 제거할까요?',
+      description: `${selectedMissingVisibleColumns.length}개 컬럼을 확인해 결측치가 있는 ${missingRowsCount.toLocaleString()}개 행을 제거합니다.`,
       confirmLabel: '행 제거',
       onConfirm: () => {
         setProcessingTool('missing');
         setProcessedRows(rows =>
-          rows.filter(row => row.every(value => String(value ?? '').trim() !== ''))
+          rows.filter(row =>
+            selectedMissingVisibleColumns.every(
+              index => String(row[index] ?? '').trim() !== ''
+            )
+          )
         );
+        setSelectedMissingColumns([]);
       },
     });
   };
   const removeDuplicateRows = () => {
-    if (!duplicateRowsCount) return;
+    if (!selectedDuplicateVisibleColumns.length || !duplicateRowsCount) return;
     setConfirmation({
-      title: '중복 행을 제거할까요?',
-      description: `${duplicateRowsCount.toLocaleString()}개 중복 행이 제거됩니다. 이 작업은 현재 데이터 처리 결과에 반영됩니다.`,
+      title: '선택한 컬럼을 기준으로 중복 행을 제거할까요?',
+      description: `${selectedDuplicateVisibleColumns.length}개 컬럼을 기준으로 ${duplicateRowsCount.toLocaleString()}개 중복 행을 제거합니다.`,
       confirmLabel: '중복 제거',
       onConfirm: () => {
         setProcessingTool('duplicate');
-        setProcessedRows(rows => [
-          ...new Map(rows.map(row => [JSON.stringify(row), row])).values(),
-        ]);
+        setProcessedRows(rows => {
+          const seen = new Set();
+          return rows.filter(row => {
+            const key = JSON.stringify(
+              selectedDuplicateVisibleColumns.map(index => row[index] ?? '')
+            );
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        });
+        setSelectedDuplicateColumns([]);
       },
     });
   };
@@ -194,6 +224,12 @@ export default function DetailPage({ data, onChangeFile }) {
       confirmLabel: '컬럼 제거',
       onConfirm: () => {
         setRemovedColumns(current => [...new Set([...current, ...selectedRemovalColumns])]);
+        setSelectedMissingColumns(current =>
+          current.filter(index => !selectedRemovalColumns.includes(index))
+        );
+        setSelectedDuplicateColumns(current =>
+          current.filter(index => !selectedRemovalColumns.includes(index))
+        );
         setSelectedRemovalColumns([]);
       },
     });
@@ -259,6 +295,40 @@ export default function DetailPage({ data, onChangeFile }) {
     setConfirmation(null);
     action?.();
   };
+  const selectedProcessingColumns =
+    processingTool === 'missing'
+      ? selectedMissingColumns
+      : processingTool === 'duplicate'
+        ? selectedDuplicateColumns
+        : selectedRemovalColumns;
+  const setSelectedProcessingColumns =
+    processingTool === 'missing'
+      ? setSelectedMissingColumns
+      : processingTool === 'duplicate'
+        ? setSelectedDuplicateColumns
+        : setSelectedRemovalColumns;
+  const processingSelectionHeading =
+    processingTool === 'missing'
+      ? '결측치를 확인할 컬럼 선택'
+      : processingTool === 'duplicate'
+        ? '중복 기준 컬럼 선택'
+        : '제거할 컬럼 선택';
+  const processingActionDisabled =
+    !selectedProcessingColumns.length ||
+    (processingTool === 'missing' && !missingRowsCount) ||
+    (processingTool === 'duplicate' && !duplicateRowsCount);
+  const runSelectedProcessingAction =
+    processingTool === 'missing'
+      ? removeMissingRows
+      : processingTool === 'duplicate'
+        ? removeDuplicateRows
+        : removeSelectedColumns;
+  const processingActionLabel =
+    processingTool === 'missing'
+      ? `결측 행 ${missingRowsCount.toLocaleString()}개 제거`
+      : processingTool === 'duplicate'
+        ? `중복 행 ${duplicateRowsCount.toLocaleString()}개 제거`
+        : '선택한 컬럼 제거';
   const processingControls = (
     <section className="sidebar-tools">
       <div className="process-tool-cards">
@@ -288,22 +358,30 @@ export default function DetailPage({ data, onChangeFile }) {
             <small>선택한 컬럼을 데이터에서 제거</small>
           </div>
         </button>
-        <button type="button" onClick={removeMissingRows}>
+        <button
+          type="button"
+          className={processingTool === 'missing' ? 'active' : ''}
+          onClick={() => setProcessingTool('missing')}
+        >
           <span>
             <ProcessToolIcon type="missing" />
           </span>
           <div>
             <strong>결측치 제거</strong>
-            <small>비어 있는 값이 포함된 행 제거</small>
+            <small>선택한 컬럼에 빈 값이 있는 행 제거</small>
           </div>
         </button>
-        <button type="button" onClick={removeDuplicateRows}>
+        <button
+          type="button"
+          className={processingTool === 'duplicate' ? 'active' : ''}
+          onClick={() => setProcessingTool('duplicate')}
+        >
           <span>
             <ProcessToolIcon type="duplicate" />
           </span>
           <div>
             <strong>중복 제거</strong>
-            <small>중복된 행을 하나로 정리</small>
+            <small>선택한 컬럼을 기준으로 중복 행 정리</small>
           </div>
         </button>
       </div>
@@ -362,8 +440,8 @@ export default function DetailPage({ data, onChangeFile }) {
       ) : (
         <>
           <div className="process-column-heading">
-            <strong>제거할 컬럼 선택</strong>
-            <span>{selectedRemovalColumns.length}개 선택</span>
+            <strong>{processingSelectionHeading}</strong>
+            <span>{selectedProcessingColumns.length}개 선택</span>
           </div>
           <label className="sidebar-column-search">
             <span>
@@ -387,9 +465,9 @@ export default function DetailPage({ data, onChangeFile }) {
                 <label key={`${header}-${index}`}>
                   <input
                     type="checkbox"
-                    checked={selectedRemovalColumns.includes(index)}
+                    checked={selectedProcessingColumns.includes(index)}
                     onChange={() =>
-                      setSelectedRemovalColumns(current =>
+                      setSelectedProcessingColumns(current =>
                         current.includes(index)
                           ? current.filter(column => column !== index)
                           : [...current, index]
@@ -405,11 +483,15 @@ export default function DetailPage({ data, onChangeFile }) {
           <button
             className="remove-columns-button"
             type="button"
-            disabled={!selectedRemovalColumns.length}
-            onClick={removeSelectedColumns}
+            disabled={processingActionDisabled}
+            onClick={runSelectedProcessingAction}
           >
-            <Trash2 aria-hidden="true" />
-            선택한 컬럼 제거
+            {processingTool === 'columns' ? (
+              <Trash2 aria-hidden="true" />
+            ) : (
+              <ProcessToolIcon type={processingTool} />
+            )}
+            {processingActionLabel}
           </button>
         </>
       )}
