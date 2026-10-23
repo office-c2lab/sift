@@ -1952,6 +1952,8 @@
   flex: 1;
   min-height: 0;
   padding: 13px 0;
+  display: flex;
+  flex-direction: column;
   overflow: auto;
 }
 .ai-intro {
@@ -2056,6 +2058,24 @@
 }
 .ai-loading-dots i:nth-child(3) {
   animation-delay: 0.24s;
+}
+.ai-suggestions-loading {
+  min-height: 180px;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #52705e;
+}
+.ai-suggestions-loading > svg {
+  width: 20px;
+  height: 20px;
+  color: #20a96b;
+}
+.ai-suggestions-loading > strong {
+  font-size: 13px;
+  font-weight: 700;
 }
 .ai-load-error {
   margin-top: 12px;

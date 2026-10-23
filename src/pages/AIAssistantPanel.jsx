@@ -26,6 +26,20 @@ function WaitingMessage({ label = '답변을 준비하고 있어요' }) {
   );
 }
 
+function SuggestionsLoading() {
+  return (
+    <div className="ai-suggestions-loading" role="status">
+      <Sparkles aria-hidden="true" />
+      <strong>추천 질문 생성 중</strong>
+      <span className="ai-loading-dots" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+    </div>
+  );
+}
+
 export default function AIAssistantPanel({ datasetId, onClose, closing = false }) {
   const [question, setQuestion] = useState('');
   const [newChatConfirmationOpen, setNewChatConfirmationOpen] = useState(false);
@@ -116,7 +130,7 @@ export default function AIAssistantPanel({ datasetId, onClose, closing = false }
             </p>
           </div>
 
-          {suggestionsQuery.isLoading && <WaitingMessage label="대화를 불러오고 있어요" />}
+          {suggestionsQuery.isLoading && <SuggestionsLoading />}
 
           {suggestionsQuery.isError && (
             <div className="ai-load-error" role="alert">
