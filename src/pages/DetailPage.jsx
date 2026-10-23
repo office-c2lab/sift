@@ -122,6 +122,7 @@ export default function DetailPage({ data, onChangeFile }) {
   const [chartAggregation, setChartAggregation] = useState('');
   const [renderedChart, setRenderedChart] = useState(null);
   const [assistantOpen, setAssistantOpen] = useState(true);
+  const [downloadPreparing, setDownloadPreparing] = useState(false);
   const {
     data: datasetOverview,
     isLoading: overviewLoading,
@@ -418,11 +419,34 @@ export default function DetailPage({ data, onChangeFile }) {
       },
     });
   };
-  const downloadCurrentCsv = () => {
-    if (downloadMutation.isPending) return;
+  const downloadCurrentCsv = async () => {
+    if (downloadMutation.isPending || downloadPreparing) return;
 
-    downloadMutation.mutate(undefined, {
-      onSuccess: ({ blob, filename }) => {
+    setDownloadPreparing(true);
+    try {
+      let fileHandle = null;
+      if (typeof window.showSaveFilePicker === 'function') {
+        try {
+          fileHandle = await window.showSaveFilePicker({
+            suggestedName: data.fileName,
+            types: [
+              {
+                description: 'CSV 파일',
+                accept: { 'text/csv': ['.csv'] },
+              },
+            ],
+          });
+        } catch (error) {
+          if (error.name === 'AbortError') return;
+        }
+      }
+
+      const { blob, filename } = await downloadMutation.mutateAsync();
+      if (fileHandle) {
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } else {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -431,11 +455,12 @@ export default function DetailPage({ data, onChangeFile }) {
         link.click();
         link.remove();
         window.setTimeout(() => URL.revokeObjectURL(url), 0);
-      },
-      onError: () => {
-        toast.error('CSV 파일을 다운로드하지 못했어요.');
-      },
-    });
+      }
+    } catch {
+      toast.error('CSV 파일을 다운로드하지 못했어요.');
+    } finally {
+      setDownloadPreparing(false);
+    }
   };
   const confirmFileChange = () =>
     setConfirmation({
@@ -1031,7 +1056,7 @@ export default function DetailPage({ data, onChangeFile }) {
         onAssistantClose={() => setAssistantOpen(false)}
         onFileChange={confirmFileChange}
         onDownloadCsv={downloadCurrentCsv}
-        downloadPending={downloadMutation.isPending}
+        downloadPending={downloadMutation.isPending || downloadPreparing}
         sidebarContent={
           activeTab === 'merge'
             ? mergeControls

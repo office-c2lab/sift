@@ -149,6 +149,7 @@ export default function DetailLayout({
             데이터 처리
             {toolTabChevron('processing')}
           </button>
+          {/* 데이터 병합 주석
            <button
             className={activeTab === 'merge' ? 'active' : ''}
             onClick={() => openOrToggleToolTab('merge', '/details/merge')}
@@ -157,7 +158,7 @@ export default function DetailLayout({
             <TabIcon type="merge" />
             데이터 병합
             {toolTabChevron('merge')}
-          </button>
+          </button> */}
         </nav>
         <div className="sidebar-footer-actions">
           <button
