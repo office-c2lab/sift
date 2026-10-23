@@ -801,6 +801,7 @@
     line-height: 1.4;
   }
 }
+
 @media (max-width: 700px) {
   .preview-workspace {
     grid-template-columns: 1fr;
@@ -3254,6 +3255,10 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+.processing-download-footer { width: 100%; flex: 0 0 auto; margin-top: auto; padding-top: 12px; }
+.download-csv-button { width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #a8d8b8; border-radius: 8px; color: #188951; background: #f4fbf6; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.download-csv-button:hover { border-color: #72c18d; background: #e8f7ed; }
+.download-csv-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; }
 
 /* Increase readability across the entire left sidebar. */
 .preview-sidebar .sidebar-file-name {
@@ -4347,4 +4352,12 @@
   .detail-content-card > .detail-layout {
     min-height: 560px;
   }
+}
+
+/* Use the product key color for every icon in the data overview. */
+.overview-view .overview-metric-icon,
+.overview-view .column-info-icon,
+.overview-view .overview-preview-icon {
+  color: #20a96b;
+  background: #edf8f1;
 }

@@ -9,6 +9,7 @@ import {
   ChartPie,
   Copy,
   Database,
+  Download,
   Eye,
   Merge,
   Rows3,
@@ -91,7 +92,6 @@ export default function DetailPage({ data, onChangeFile }) {
   const [chartType, setChartType] = useState('bar');
   const [chartMetricIndex, setChartMetricIndex] = useState('count');
   const [chartCategoryIndex, setChartCategoryIndex] = useState('auto');
-  const [overviewRowLimit, setOverviewRowLimit] = useState('100');
   const [assistantOpen, setAssistantOpen] = useState(true);
   const activeTab =
     location.pathname === '/details/visualization'
@@ -152,8 +152,6 @@ export default function DetailPage({ data, onChangeFile }) {
     (total, row) => total + row.filter(value => String(value ?? '').trim() === '').length,
     0
   );
-  const overviewRows =
-    overviewRowLimit === 'all' ? data.rows : data.rows.slice(0, Number(overviewRowLimit));
   const missingRowsCount = processedRows.filter(row =>
     row.some(value => String(value ?? '').trim() === '')
   ).length;
@@ -231,6 +229,23 @@ export default function DetailPage({ data, onChangeFile }) {
         setMergeSecondColumn('');
       },
     });
+  };
+  const downloadProcessedCsv = () => {
+    const escapeCell = value => {
+      const text = String(value ?? '');
+      return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+    };
+    const csvRows = [
+      visibleColumns.map(index => processedHeaders[index]),
+      ...processedRows.map(row => visibleColumns.map(index => row[index] ?? '')),
+    ];
+    const csv = `\uFEFF${csvRows.map(row => row.map(escapeCell).join(',')).join('\r\n')}`;
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${data.fileName.replace(/\.csv$/i, '')}_processed.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
   const confirmFileChange = () =>
     setConfirmation({
@@ -398,6 +413,11 @@ export default function DetailPage({ data, onChangeFile }) {
           </button>
         </>
       )}
+      <div className="processing-download-footer">
+        <button className="download-csv-button" type="button" onClick={downloadProcessedCsv}>
+          <Download aria-hidden="true" />CSV 다운로드
+        </button>
+      </div>
     </section>
   );
   const visualizationControls = (
@@ -495,33 +515,21 @@ export default function DetailPage({ data, onChangeFile }) {
         <div className="overview-panels">
           <ColumnInfoCard data={data} layout="table" />
           <section className="overview-preview-card">
-            <header>
-              <div>
-                <span className="overview-preview-icon">
-                  <Eye aria-hidden="true" />
-                </span>
-                <h2>데이터 미리보기</h2>
-              </div>
-              <div className="overview-limit-select">
-                <CustomDropdown
-                  value={overviewRowLimit}
-                  onChange={setOverviewRowLimit}
-                  options={[
-                    { value: '100', label: '처음 100행 보기' },
-                    { value: '500', label: '처음 500행 보기' },
-                    { value: 'all', label: '전체 데이터 보기' },
-                  ]}
-                />
-              </div>
-            </header>
-            <DataTable headers={data.headers} rows={overviewRows} />
+          <header>
+            <div>
+              <span className="overview-preview-icon">
+                <Eye aria-hidden="true" />
+              </span>
+              <h2>데이터</h2>
+            </div>
+          </header>
+          <DataTable headers={data.headers} rows={data.rows} />
           </section>
         </div>
       </section>
     ),
     visualization: (
       <section className="detail-view visualization-view">
-        <div className="page-control-panel">{visualizationControls}</div>
         <div className="visual-chart-card">
           <div className="visual-chart-heading">
             <div>
@@ -529,7 +537,7 @@ export default function DetailPage({ data, onChangeFile }) {
                 {metric ? `${metric.header} 합계` : '행 개수'} ·{' '}
                 {categoryIndex >= 0 ? data.headers[categoryIndex] : '전체 행'}
               </h2>
-              <p>페이지 안의 설정에서 그래프 종류와 기준을 바꿀 수 있습니다.</p>
+              <p>왼쪽 사이드바에서 그래프 종류와 기준을 바꿀 수 있습니다.</p>
             </div>
             <span className="chart-legend-label">
               <i />
@@ -612,7 +620,6 @@ export default function DetailPage({ data, onChangeFile }) {
     ),
     processing: (
       <section className="detail-view processing-view">
-        <div className="page-control-panel">{processingControls}</div>
         <DataTable headers={processedHeaders} rows={visibleRows} indices={visibleColumns} />
       </section>
     ),
@@ -628,6 +635,13 @@ export default function DetailPage({ data, onChangeFile }) {
         onAssistantOpen={() => setAssistantOpen(true)}
         onAssistantClose={() => setAssistantOpen(false)}
         onFileChange={confirmFileChange}
+        sidebarContent={
+          activeTab === 'processing'
+            ? processingControls
+            : activeTab === 'visualization'
+              ? visualizationControls
+              : null
+        }
         outletContext={outletContext}
       />
       {confirmation && (

@@ -18,23 +18,13 @@ export default function DetailLayout({
   onAssistantOpen,
   onAssistantClose,
   onFileChange,
+  sidebarContent,
   outletContext,
 }) {
   return (
     <main
-      className={`preview-workspace detail-workspace${assistantOpen ? ' assistant-visible' : ''}`}
+      className={`preview-workspace detail-workspace${assistantOpen ? ' assistant-visible' : ''}${sidebarContent ? ' has-tool-sidebar' : ''}`}
     >
-      <header className="detail-page-header">
-        <button
-          type="button"
-          className="detail-header-ai-button"
-          onClick={assistantOpen ? onAssistantClose : onAssistantOpen}
-          aria-expanded={assistantOpen}
-        >
-          <Sparkles aria-hidden="true" />
-          AI 어시스턴트 {assistantOpen ? '닫기' : '열기'}
-        </button>
-      </header>
       <aside className="preview-sidebar">
         <section className="sidebar-dataset-summary" aria-label="업로드한 CSV 정보">
           <div className="sidebar-dataset-file">
@@ -66,12 +56,22 @@ export default function DetailLayout({
           </button>
         </nav>
         <div className="sidebar-footer-actions">
+          <button
+            type="button"
+            className="sidebar-action-button sidebar-ai-toggle"
+            onClick={assistantOpen ? onAssistantClose : onAssistantOpen}
+            aria-expanded={assistantOpen}
+          >
+            <Sparkles aria-hidden="true" />
+            AI 어시스턴트 {assistantOpen ? '닫기' : '열기'}
+          </button>
           <button type="button" className="sidebar-action-button" onClick={onFileChange}>
             <RefreshCw aria-hidden="true" />
             파일 변경
           </button>
         </div>
       </aside>
+      {sidebarContent && <aside className="detail-tool-sidebar">{sidebarContent}</aside>}
       <div className={`detail-layout${assistantOpen ? ' with-assistant' : ''}`}>
         <section className="preview-main detail-main">
           <Outlet context={outletContext} />

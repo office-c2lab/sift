@@ -10,51 +10,6 @@
   padding-bottom: 0;
 }
 
-.detail-page-header {
-  height: 48px;
-  flex: 0 0 48px;
-  padding: 0 18px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  border-bottom: 1px solid #e8eee9;
-  background: #fff;
-  grid-column: 1 / -1;
-  grid-row: 1;
-}
-
-.detail-header-ai-button {
-  min-height: 36px;
-  padding: 0 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 1px solid #bfe4cc;
-  border-radius: 8px;
-  color: #18864e;
-  background: #f1faf4;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.detail-header-ai-button:hover {
-  border-color: #75c892;
-  background: #e5f6eb;
-}
-
-.detail-header-ai-button svg {
-  width: 17px;
-  height: 17px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
 .detail-workspace .preview-sidebar {
   grid-column: 1;
   grid-row: 1 / -1;
@@ -69,6 +24,18 @@
   border-radius: 0;
   background: #fff;
   box-shadow: none;
+}
+
+.detail-workspace .sidebar-ai-toggle {
+  border-color: #bfe4cc;
+  color: #18864e;
+  background: #f1faf4;
+}
+
+.detail-workspace .sidebar-ai-toggle:hover,
+.detail-workspace .sidebar-ai-toggle[aria-expanded='true'] {
+  border-color: #75c892;
+  background: #e5f6eb;
 }
 
 .detail-workspace .preview-sidebar > .detail-tabs {
@@ -118,7 +85,7 @@
 
 .detail-workspace .detail-layout {
   grid-column: 2;
-  grid-row: 2;
+  grid-row: 1;
   min-width: 0;
   min-height: 0;
   height: auto;
@@ -145,13 +112,35 @@
   overflow: hidden;
 }
 
-/* Processing and chart settings belong to the page workspace, beside its data. */
+.detail-workspace .detail-tool-sidebar {
+  min-width: 0;
+  min-height: 0;
+  padding: 18px 14px;
+  overflow-y: auto;
+  border-right: 1px solid #e2e9e4;
+  background: #fff;
+}
+
+.detail-workspace .detail-tool-sidebar .sidebar-tools,
+.detail-workspace .detail-tool-sidebar .sidebar-chart-controls {
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.detail-workspace .detail-tool-sidebar .sidebar-tools {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Processing tables and charts use the full content area; their controls live in the sidebar. */
 .detail-workspace .processing-view,
 .detail-workspace .visualization-view {
-  display: grid;
-  grid-template-columns: minmax(250px, 290px) minmax(0, 1fr);
-  align-items: stretch;
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
 }
 
 .detail-workspace .page-control-panel {
@@ -198,24 +187,23 @@
     overflow: hidden;
   }
 
-  .preview-workspace.detail-workspace:has(> .detail-page-header) {
+  .preview-workspace.detail-workspace {
     display: grid;
     grid-template-columns: 220px minmax(0, 1fr);
-    grid-template-rows: 48px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     column-gap: 14px;
-    row-gap: 12px;
   }
 
-  .preview-workspace.detail-workspace.assistant-visible:has(> .detail-page-header) {
+  .preview-workspace.detail-workspace.assistant-visible {
     display: grid;
     grid-template-columns: 220px minmax(0, 1fr) 320px;
-    grid-template-rows: 48px minmax(0, 1fr);
-    gap: 12px 14px;
+    grid-template-rows: minmax(0, 1fr);
+    column-gap: 14px;
   }
 
   .preview-workspace.detail-workspace.assistant-visible > .ai-assistant-panel {
     grid-column: 3;
-    grid-row: 2;
+    grid-row: 1;
     height: auto;
     min-height: 0;
   }
@@ -227,11 +215,38 @@
 
   .preview-workspace.detail-workspace.assistant-visible .detail-layout {
     grid-column: 2;
-    grid-row: 2;
+    grid-row: 1;
     grid-template-columns: minmax(0, 1fr);
     height: auto;
     min-height: 0;
     padding: 0;
+  }
+
+  .preview-workspace.detail-workspace.has-tool-sidebar {
+    grid-template-columns: 220px 290px 14px minmax(0, 1fr);
+    column-gap: 0;
+  }
+
+  .preview-workspace.detail-workspace.assistant-visible.has-tool-sidebar {
+    grid-template-columns: 220px 290px 14px minmax(0, 1fr) 14px 320px;
+    column-gap: 0;
+  }
+
+  .preview-workspace.detail-workspace.has-tool-sidebar > .detail-tool-sidebar {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .preview-workspace.detail-workspace.has-tool-sidebar > .detail-layout,
+  .preview-workspace.detail-workspace.assistant-visible.has-tool-sidebar > .detail-layout {
+    grid-column: 4;
+    grid-row: 1;
+  }
+
+  .preview-workspace.detail-workspace.assistant-visible.has-tool-sidebar
+    > .ai-assistant-panel {
+    grid-column: 6;
+    grid-row: 1;
   }
 }
 
@@ -240,7 +255,7 @@
     padding-top: 0;
   }
 
-  .preview-workspace.detail-workspace:has(> .detail-page-header) {
+  .preview-workspace.detail-workspace {
     height: auto;
     min-height: 100vh;
     min-height: 100dvh;
@@ -263,11 +278,17 @@
     min-height: 0;
     height: auto;
   }
+  .detail-workspace .detail-tool-sidebar {
+    width: 100%;
+    max-height: 520px;
+    flex: 0 0 auto;
+    border-top: 1px solid #e2e9e4;
+  }
 
   .detail-workspace .processing-view,
   .detail-workspace .visualization-view {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(190px, auto) minmax(300px, 1fr);
+    display: flex;
+    flex-direction: column;
     overflow: auto;
   }
 
@@ -282,14 +303,5 @@
   }
   .detail-workspace .detail-layout {
     border-radius: 12px;
-  }
-  .detail-page-header {
-    height: 44px;
-    flex-basis: 44px;
-    padding: 0 12px;
-  }
-  .detail-header-ai-button {
-    min-height: 34px;
-    font-size: 12px;
   }
 }
