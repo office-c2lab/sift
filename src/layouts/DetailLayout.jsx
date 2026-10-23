@@ -4,6 +4,8 @@ import {
   ChartColumn,
   ChevronLeft,
   ChevronRight,
+  Download,
+  Merge,
   RefreshCw,
   SlidersHorizontal,
   Sparkles,
@@ -16,6 +18,7 @@ import '../styles/DetailLayout.css';
 function TabIcon({ type }) {
   if (type === 'overview') return <TableProperties aria-hidden="true" />;
   if (type === 'visualization') return <ChartColumn aria-hidden="true" />;
+  if (type === 'merge') return <Merge aria-hidden="true" />;
   return <SlidersHorizontal aria-hidden="true" />;
 }
 
@@ -27,6 +30,7 @@ export default function DetailLayout({
   onAssistantOpen,
   onAssistantClose,
   onFileChange,
+  onDownloadCsv,
   sidebarContent,
   outletContext,
 }) {
@@ -55,6 +59,10 @@ export default function DetailLayout({
     processing: {
       title: '데이터 처리',
       description: '필요한 방식으로 데이터를 정리하고 내려받으세요.',
+    },
+    merge: {
+      title: '컬럼 병합',
+      description: '두 컬럼의 값을 하나의 새 컬럼으로 합치세요.',
     },
     visualization: {
       title: '시각화',
@@ -121,6 +129,7 @@ export default function DetailLayout({
             <TabIcon type="overview" />
             데이터 개요
           </button>
+         
           <button
             className={activeTab === 'visualization' ? 'active' : ''}
             onClick={() => openOrToggleToolTab('visualization', '/details/visualization')}
@@ -139,8 +148,23 @@ export default function DetailLayout({
             데이터 처리
             {toolTabChevron('processing')}
           </button>
+           <button
+            className={activeTab === 'merge' ? 'active' : ''}
+            onClick={() => openOrToggleToolTab('merge', '/details/merge')}
+            aria-expanded={activeTab === 'merge' && toolSidebarOpen}
+          >
+            <TabIcon type="merge" />
+            데이터 병합
+            {toolTabChevron('merge')}
+          </button>
         </nav>
         <div className="sidebar-footer-actions">
+          {(activeTab === 'processing' || activeTab === 'merge') && (
+            <button type="button" className="download-csv-button" onClick={onDownloadCsv}>
+              <Download aria-hidden="true" />
+              CSV 다운로드
+            </button>
+          )}
           <button type="button" className="sidebar-action-button" onClick={onFileChange}>
             <RefreshCw aria-hidden="true" />
             파일 변경

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import useDatasetOverview from '../hooks/useDatasetOverview.js';
+import useChartData from '../hooks/useChartData.js';
+import useChartOptions from '../hooks/useChartOptions.js';
 import { formatFileSize } from '../utils/csv.js';
 import ColumnInfoCard from './ColumnInfoCard.jsx';
 import ConfirmActionModal from './ConfirmActionModal.jsx';
@@ -13,7 +15,6 @@ import {
   ChartPie,
   Copy,
   Database,
-  Download,
   Eye,
   Merge,
   Rows3,
@@ -98,6 +99,7 @@ export default function DetailPage({ data, onChangeFile }) {
   const [chartType, setChartType] = useState('');
   const [chartMetricIndex, setChartMetricIndex] = useState('');
   const [chartCategoryIndex, setChartCategoryIndex] = useState('');
+  const [chartAggregation, setChartAggregation] = useState('');
   const [renderedChart, setRenderedChart] = useState(null);
   const [assistantOpen, setAssistantOpen] = useState(true);
   const [visibleRowRange, setVisibleRowRange] = useState({
@@ -111,56 +113,72 @@ export default function DetailPage({ data, onChangeFile }) {
     isLoading: overviewLoading,
     isError: overviewError,
   } = useDatasetOverview(data.datasetId);
+  const {
+    data: chartOptions,
+    isFetching: chartOptionsLoading,
+    isError: chartOptionsError,
+  } = useChartOptions(data.datasetId, chartType);
+  const chartDataMutation = useChartData(data.datasetId);
   const activeTab =
     location.pathname === '/details/visualization'
       ? 'visualization'
-      : location.pathname === '/details/processing'
-        ? 'processing'
-        : 'overview';
-  const numericColumns = useMemo(
-    () =>
-      data.headers
-        .map((header, index) => ({ header, index }))
-        .filter(({ index }) => {
-          const filled = data.rows
-            .slice(0, 100)
-            .map(row => String(row[index] ?? '').trim())
-            .filter(Boolean);
-          return (
-            filled.length > 0 &&
-            filled.filter(value => Number.isFinite(Number(value.replace(/[,$₩\s]/g, '')))).length /
-              filled.length >=
-              0.7
-          );
-        }),
-    [data]
+      : location.pathname === '/details/merge'
+        ? 'merge'
+        : location.pathname === '/details/processing'
+          ? 'processing'
+          : 'overview';
+  const categoryOptions = chartOptions?.category_columns ?? [];
+  const valueOptions = chartOptions?.value_options ?? [];
+  const aggregationOptions = chartOptions?.aggregations ?? [];
+  const needsAggregation = chartMetricIndex !== '' && chartMetricIndex !== 'row_count';
+  const canDrawChart = Boolean(
+    chartType &&
+      chartCategoryIndex !== '' &&
+      chartMetricIndex &&
+      (!needsAggregation || chartAggregation) &&
+      !chartOptionsLoading &&
+      !chartDataMutation.isPending
   );
-  const metric =
-    renderedChart?.metricIndex === 'count'
-      ? null
-      : numericColumns.find(({ index }) => index === Number(renderedChart?.metricIndex));
-  const categoryIndex = renderedChart ? Number(renderedChart.categoryIndex) : -1;
-  const chartData = useMemo(() => {
-    if (!renderedChart) return [];
-    const grouped = new Map();
-    data.rows.forEach((row, rowIndex) => {
-      const label = categoryIndex >= 0 ? row[categoryIndex] || '미지정' : `행 ${rowIndex + 1}`;
-      const value = metric
-        ? Number(String(row[metric.index] ?? '').replace(/[,$₩\s]/g, '')) || 0
-        : 1;
-      grouped.set(label, (grouped.get(label) || 0) + value);
-    });
-    return [...grouped.entries()].slice(0, 20).map(([label, value]) => ({ label, value }));
-  }, [data, metric, categoryIndex, renderedChart]);
-  const canDrawChart = Boolean(chartType && chartCategoryIndex && chartMetricIndex);
-  const drawChart = () => {
+  const drawChart = async () => {
     if (!canDrawChart) return;
-    setRenderedChart({
-      type: chartType,
-      categoryIndex: chartCategoryIndex,
-      metricIndex: chartMetricIndex,
-    });
+    const selectedCategory = categoryOptions.find(
+      option => option.column_index === Number(chartCategoryIndex)
+    );
+    const selectedValue = valueOptions.find(option =>
+      option.kind === 'row_count'
+        ? chartMetricIndex === 'row_count'
+        : option.column_index === Number(chartMetricIndex)
+    );
+    const selectedAggregation = aggregationOptions.find(
+      option => option.value === chartAggregation
+    );
+    const configuration = {
+      chart_type: chartType,
+      category_column_index: Number(chartCategoryIndex),
+      value:
+        chartMetricIndex === 'row_count'
+          ? { kind: 'row_count' }
+          : { kind: 'column', column_index: Number(chartMetricIndex) },
+      aggregation: needsAggregation ? chartAggregation : null,
+    };
+
+    try {
+      const response = await chartDataMutation.mutateAsync(configuration);
+      setRenderedChart({
+        type: chartType,
+        categoryLabel: selectedCategory?.name ?? '가로축',
+        valueLabel: selectedValue?.name ?? selectedValue?.label ?? '행 개수',
+        aggregationLabel: needsAggregation ? selectedAggregation?.label : '',
+        data: response.data.map(point => ({ label: point.x, value: point.y })),
+      });
+    } catch {
+      // The mutation error is rendered in the chart area.
+    }
   };
+  const chartData = renderedChart?.data ?? [];
+  const renderedValueLabel = renderedChart
+    ? [renderedChart.valueLabel, renderedChart.aggregationLabel].filter(Boolean).join(' · ')
+    : '';
   const visibleRows = processedRows;
   const visibleColumns = processedHeaders
     .map((_, index) => index)
@@ -360,22 +378,64 @@ export default function DetailPage({ data, onChangeFile }) {
       : processingTool === 'duplicate'
         ? `중복 행 ${duplicateRowsCount.toLocaleString()}개 제거`
         : '선택한 컬럼 제거';
+  const mergeControls = (
+    <section className="sidebar-tools">
+      <div className="merge-column-form">
+        <div className="process-column-heading">
+          <strong>병합할 컬럼 설정</strong>
+          <span>2개 선택</span>
+        </div>
+        <label>
+          <span>첫 번째 컬럼</span>
+          <CustomDropdown
+            value={mergeFirstColumn}
+            onChange={setMergeFirstColumn}
+            options={[{ value: '', label: '컬럼 선택' }, ...mergeColumnOptions]}
+          />
+        </label>
+        <label>
+          <span>두 번째 컬럼</span>
+          <CustomDropdown
+            value={mergeSecondColumn}
+            onChange={setMergeSecondColumn}
+            options={[{ value: '', label: '컬럼 선택' }, ...mergeColumnOptions]}
+          />
+        </label>
+        <label>
+          <span>새 컬럼명</span>
+          <input
+            value={mergeColumnName}
+            onChange={event => setMergeColumnName(event.target.value)}
+            placeholder="예: 전체 주소"
+          />
+        </label>
+        <label>
+          <span>구분자</span>
+          <input
+            value={mergeSeparator}
+            onChange={event => setMergeSeparator(event.target.value)}
+            placeholder="공백 없이 병합"
+          />
+        </label>
+        <button
+          className="merge-columns-button"
+          type="button"
+          disabled={
+            !mergeColumnName.trim() ||
+            mergeFirstColumn === '' ||
+            mergeSecondColumn === '' ||
+            mergeFirstColumn === mergeSecondColumn
+          }
+          onClick={mergeColumns}
+        >
+          <ProcessToolIcon type="merge" />새 컬럼으로 병합
+        </button>
+      </div>
+    </section>
+  );
   const processingControls = (
     <section className="sidebar-tools">
       <div className="process-tool-cards">
-        <button
-          type="button"
-          className={`merge-tool${processingTool === 'merge' ? ' active' : ''}`}
-          onClick={() => setProcessingTool('merge')}
-        >
-          <span>
-            <ProcessToolIcon type="merge" />
-          </span>
-          <div>
-            <strong>컬럼 병합</strong>
-            <small>두 컬럼의 값을 새 컬럼으로 합치기</small>
-          </div>
-        </button>
         <button
           type="button"
           className={processingTool === 'columns' ? 'active' : ''}
@@ -416,122 +476,60 @@ export default function DetailPage({ data, onChangeFile }) {
           </div>
         </button>
       </div>
-      {processingTool === 'merge' ? (
-        <div className="merge-column-form">
-          <div className="process-column-heading">
-            <strong>병합할 컬럼 설정</strong>
-            <span>2개 선택</span>
-          </div>
-          <label>
-            <span>첫 번째 컬럼</span>
-            <CustomDropdown
-              value={mergeFirstColumn}
-              onChange={setMergeFirstColumn}
-              options={[{ value: '', label: '컬럼 선택' }, ...mergeColumnOptions]}
-            />
-          </label>
-          <label>
-            <span>두 번째 컬럼</span>
-            <CustomDropdown
-              value={mergeSecondColumn}
-              onChange={setMergeSecondColumn}
-              options={[{ value: '', label: '컬럼 선택' }, ...mergeColumnOptions]}
-            />
-          </label>
-          <label>
-            <span>새 컬럼명</span>
-            <input
-              value={mergeColumnName}
-              onChange={event => setMergeColumnName(event.target.value)}
-              placeholder="예: 전체 주소"
-            />
-          </label>
-          <label>
-            <span>구분자</span>
-            <input
-              value={mergeSeparator}
-              onChange={event => setMergeSeparator(event.target.value)}
-              placeholder="공백 없이 병합"
-            />
-          </label>
-          <button
-            className="merge-columns-button"
-            type="button"
-            disabled={
-              !mergeColumnName.trim() ||
-              mergeFirstColumn === '' ||
-              mergeSecondColumn === '' ||
-              mergeFirstColumn === mergeSecondColumn
-            }
-            onClick={mergeColumns}
-          >
-            <ProcessToolIcon type="merge" />새 컬럼으로 병합
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="process-column-heading">
-            <strong>{processingSelectionHeading}</strong>
-            <span>{selectedProcessingColumns.length}개 선택</span>
-          </div>
-          <label className="sidebar-column-search">
-            <span>
-              <Search aria-hidden="true" />
-            </span>
-            <input
-              value={columnSearch}
-              onChange={event => setColumnSearch(event.target.value)}
-              placeholder="컬럼 검색"
-            />
-          </label>
-          <div className="sidebar-column-list">
-            {processedHeaders
-              .map((header, index) => ({ header, index }))
-              .filter(
-                ({ header, index }) =>
-                  !removedColumns.includes(index) &&
-                  header.toLowerCase().includes(columnSearch.toLowerCase())
-              )
-              .map(({ header, index }) => (
-                <label key={`${header}-${index}`}>
-                  <input
-                    type="checkbox"
-                    checked={selectedProcessingColumns.includes(index)}
-                    onChange={() =>
-                      setSelectedProcessingColumns(current =>
-                        current.includes(index)
-                          ? current.filter(column => column !== index)
-                          : [...current, index]
-                      )
-                    }
-                  />
-                  <span className="sidebar-column-name" title={header}>
-                    {header}
-                  </span>
-                </label>
-              ))}
-          </div>
-          <button
-            className="remove-columns-button"
-            type="button"
-            disabled={processingActionDisabled}
-            onClick={runSelectedProcessingAction}
-          >
-            {processingTool === 'columns' ? (
-              <Trash2 aria-hidden="true" />
-            ) : (
-              <ProcessToolIcon type={processingTool} />
-            )}
-            {processingActionLabel}
-          </button>
-        </>
-      )}
-      <div className="processing-download-footer">
-        <button className="download-csv-button" type="button" onClick={downloadProcessedCsv}>
-          <Download aria-hidden="true" />
-          CSV 다운로드
-        </button>
+      <div className="process-column-heading">
+        <strong>{processingSelectionHeading}</strong>
+        <span>{selectedProcessingColumns.length}개 선택</span>
       </div>
+      <label className="sidebar-column-search">
+        <span>
+          <Search aria-hidden="true" />
+        </span>
+        <input
+          value={columnSearch}
+          onChange={event => setColumnSearch(event.target.value)}
+          placeholder="컬럼 검색"
+        />
+      </label>
+      <div className="sidebar-column-list">
+        {processedHeaders
+          .map((header, index) => ({ header, index }))
+          .filter(
+            ({ header, index }) =>
+              !removedColumns.includes(index) &&
+              header.toLowerCase().includes(columnSearch.toLowerCase())
+          )
+          .map(({ header, index }) => (
+            <label key={`${header}-${index}`}>
+              <input
+                type="checkbox"
+                checked={selectedProcessingColumns.includes(index)}
+                onChange={() =>
+                  setSelectedProcessingColumns(current =>
+                    current.includes(index)
+                      ? current.filter(column => column !== index)
+                      : [...current, index]
+                  )
+                }
+              />
+              <span className="sidebar-column-name" title={header}>
+                {header}
+              </span>
+            </label>
+          ))}
+      </div>
+      <button
+        className="remove-columns-button"
+        type="button"
+        disabled={processingActionDisabled}
+        onClick={runSelectedProcessingAction}
+      >
+        {processingTool === 'columns' ? (
+          <Trash2 aria-hidden="true" />
+        ) : (
+          <ProcessToolIcon type={processingTool} />
+        )}
+        {processingActionLabel}
+      </button>
     </section>
   );
   const visualizationControls = (
@@ -550,7 +548,13 @@ export default function DetailPage({ data, onChangeFile }) {
               type="button"
               key={value}
               className={chartType === value ? 'selected' : ''}
-              onClick={() => setChartType(value)}
+              onClick={() => {
+                setChartType(value);
+                setChartCategoryIndex('');
+                setChartMetricIndex('');
+                setChartAggregation('');
+                chartDataMutation.reset();
+              }}
             >
               {label}
             </button>
@@ -562,9 +566,16 @@ export default function DetailPage({ data, onChangeFile }) {
         <CustomDropdown
           value={chartCategoryIndex}
           onChange={setChartCategoryIndex}
+          disabled={!chartType || chartOptionsLoading || chartOptionsError}
           options={[
-            { value: '', label: '가로축 선택' },
-            ...data.headers.map((header, index) => ({ value: String(index), label: header })),
+            {
+              value: '',
+              label: chartOptionsLoading ? '옵션 불러오는 중' : '가로축 선택',
+            },
+            ...categoryOptions.map(option => ({
+              value: String(option.column_index),
+              label: option.name,
+            })),
           ]}
         />
       </div>
@@ -572,26 +583,63 @@ export default function DetailPage({ data, onChangeFile }) {
         <span>세로축 값</span>
         <CustomDropdown
           value={chartMetricIndex}
-          onChange={setChartMetricIndex}
+          onChange={value => {
+            setChartMetricIndex(value);
+            setChartAggregation('');
+          }}
+          disabled={!chartType || chartOptionsLoading || chartOptionsError}
           options={[
-            { value: '', label: '세로축 선택' },
-            { value: 'count', label: '행 개수' },
-            ...numericColumns.map(({ header, index }) => ({
-              value: String(index),
-              label: `${header} 합계`,
+            {
+              value: '',
+              label: chartOptionsLoading ? '옵션 불러오는 중' : '세로축 선택',
+            },
+            ...valueOptions.map(option => ({
+              value:
+                option.kind === 'row_count' ? 'row_count' : String(option.column_index),
+              label: option.kind === 'row_count' ? option.label : option.name,
             })),
           ]}
         />
       </div>
+      {needsAggregation && (
+        <div className="chart-select-field">
+          <span>집계 방식</span>
+          <CustomDropdown
+            value={chartAggregation}
+            onChange={setChartAggregation}
+            options={[
+              { value: '', label: '집계 방식 선택' },
+              ...aggregationOptions.map(option => ({
+                value: option.value,
+                label: option.label,
+              })),
+            ]}
+          />
+        </div>
+      )}
       <button
         className="draw-chart-button"
         type="button"
         disabled={!canDrawChart}
         onClick={drawChart}
       >
-        그래프 그리기
+        {chartDataMutation.isPending ? '데이터 집계 중' : '그래프 그리기'}
       </button>
-      <p className="chart-control-hint">모든 항목을 선택한 후 그래프 그리기를 눌러주세요.</p>
+      {chartOptionsError ? (
+        <p className="chart-control-hint is-error" role="alert">
+          차트 옵션을 불러오지 못했어요. 그래프 종류를 다시 선택해 주세요.
+        </p>
+      ) : chartDataMutation.isError ? (
+        <p className="chart-control-hint is-error" role="alert">
+          차트 데이터를 불러오지 못했어요. 설정을 확인한 후 다시 시도해 주세요.
+        </p>
+      ) : (
+        <p className="chart-control-hint">
+          {chartOptions?.max_groups
+            ? `그래프에는 최대 ${chartOptions.max_groups.toLocaleString()}개 그룹이 표시됩니다.`
+            : '모든 항목을 선택한 후 그래프 그리기를 눌러주세요.'}
+        </p>
+      )}
     </section>
   );
   const outletContext = {
@@ -681,7 +729,13 @@ export default function DetailPage({ data, onChangeFile }) {
     visualization: (
       <section className="detail-view visualization-view">
         <div className="visual-chart-card">
-          {!renderedChart ? (
+          {chartDataMutation.isPending ? (
+            <div className="visual-empty visual-empty-setup" role="status">
+              <ChartPie aria-hidden="true" />
+              <strong>차트 데이터를 집계하고 있어요</strong>
+              <span>전체 데이터 기준으로 그래프를 준비하고 있습니다.</span>
+            </div>
+          ) : !renderedChart ? (
             <div className="visual-empty visual-empty-setup">
               <ChartPie aria-hidden="true" />
               <strong>차트 설정을 완료해 주세요</strong>
@@ -692,13 +746,13 @@ export default function DetailPage({ data, onChangeFile }) {
               <div className="visual-chart-heading">
                 <div>
                   <h2>
-                    {metric ? `${metric.header} 합계` : '행 개수'} · {data.headers[categoryIndex]}
+                    {renderedValueLabel} · {renderedChart.categoryLabel}
                   </h2>
                   <p>설정을 변경한 후 그래프 그리기를 누르면 차트가 갱신됩니다.</p>
                 </div>
                 <span className="chart-legend-label">
                   <i />
-                  {metric?.header || '행 개수'}
+                  {renderedValueLabel}
                 </span>
               </div>
               <div className="recharts-frame">
@@ -740,7 +794,7 @@ export default function DetailPage({ data, onChangeFile }) {
                       <Line
                         type="monotone"
                         dataKey="value"
-                        name={metric?.header || '행 개수'}
+                        name={renderedValueLabel}
                         stroke="#20a96b"
                         strokeWidth={3}
                         isAnimationActive={false}
@@ -766,7 +820,7 @@ export default function DetailPage({ data, onChangeFile }) {
                       <Area
                         type="monotone"
                         dataKey="value"
-                        name={metric?.header || '행 개수'}
+                        name={renderedValueLabel}
                         stroke="#20a96b"
                         fill="#b9e8ca"
                         strokeWidth={3}
@@ -787,7 +841,7 @@ export default function DetailPage({ data, onChangeFile }) {
                       <Tooltip />
                       <Bar
                         dataKey="value"
-                        name={metric?.header || '행 개수'}
+                        name={renderedValueLabel}
                         fill="#20a96b"
                         radius={[6, 6, 0, 0]}
                         isAnimationActive={false}
@@ -820,12 +874,15 @@ export default function DetailPage({ data, onChangeFile }) {
         onAssistantOpen={() => setAssistantOpen(true)}
         onAssistantClose={() => setAssistantOpen(false)}
         onFileChange={confirmFileChange}
+        onDownloadCsv={downloadProcessedCsv}
         sidebarContent={
-          activeTab === 'processing'
-            ? processingControls
-            : activeTab === 'visualization'
-              ? visualizationControls
-              : null
+          activeTab === 'merge'
+            ? mergeControls
+            : activeTab === 'processing'
+              ? processingControls
+              : activeTab === 'visualization'
+                ? visualizationControls
+                : null
         }
         outletContext={outletContext}
       />

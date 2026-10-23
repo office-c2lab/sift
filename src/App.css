@@ -2570,6 +2570,9 @@
   font-size: 10px;
   line-height: 1.6;
 }
+.chart-control-hint.is-error {
+  color: #c44949;
+}
 .recharts-frame {
   width: 100%;
   height: min(60vh, 520px);
@@ -3339,21 +3342,6 @@
   background: #fff8f7;
   box-shadow: 0 2px 8px #bd39320c;
 }
-.process-tool-cards > button.merge-tool > span {
-  color: #20a96b;
-  background: #edf8f1;
-}
-.process-tool-cards > button.merge-tool:hover,
-.process-tool-cards > button.merge-tool.active {
-  border-color: #a5d9b7;
-  background: #f7fcf8;
-  box-shadow: 0 2px 8px #2673440c;
-}
-.process-tool-cards > button.merge-tool:hover > span,
-.process-tool-cards > button.merge-tool.active > span {
-  color: #188951;
-  background: #dff3e6;
-}
 .merge-column-form {
   min-width: 0;
   display: grid;
@@ -3424,12 +3412,6 @@
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-.processing-download-footer {
-  width: 100%;
-  flex: 0 0 auto;
-  margin-top: auto;
-  padding-top: 12px;
 }
 .download-csv-button {
   width: 100%;

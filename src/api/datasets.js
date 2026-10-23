@@ -21,3 +21,22 @@ export async function getDatasetRows(datasetId, { offset = 0, limit = 100, signa
   });
   return data;
 }
+
+export async function getChartOptions(datasetId, chartType, signal) {
+  const { data } = await api.get(
+    `/datasets/${encodeURIComponent(datasetId)}/charts/options`,
+    {
+      params: { chart_type: chartType },
+      signal,
+    }
+  );
+  return data;
+}
+
+export async function getChartData(datasetId, configuration) {
+  const { data } = await api.post(
+    `/datasets/${encodeURIComponent(datasetId)}/charts/data`,
+    configuration
+  );
+  return data;
+}
