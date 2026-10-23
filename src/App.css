@@ -2422,6 +2422,30 @@
   font: inherit;
   font-size: 11px;
 }
+.draw-chart-button {
+  width: 100%;
+  height: 40px;
+  margin-top: 18px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: #20a96b;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    opacity 160ms ease;
+}
+.draw-chart-button:hover:not(:disabled) {
+  background: #178d57;
+}
+.draw-chart-button:disabled {
+  color: #9eaaa2;
+  background: #e8eeea;
+  cursor: not-allowed;
+}
 .chart-control-hint {
   margin: 14px 0 0;
   color: #89988e;
@@ -2433,6 +2457,8 @@
   height: min(60vh, 520px);
   min-height: 300px;
   margin-top: 16px;
+  contain: layout paint;
+  overflow: hidden;
 }
 .recharts-frame .recharts-cartesian-axis-tick-value {
   fill: #74857a;
@@ -2444,6 +2470,32 @@
 }
 .recharts-frame .recharts-tooltip-wrapper {
   outline: none;
+}
+.visual-empty-setup {
+  min-height: min(60vh, 520px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  text-align: center;
+}
+.visual-empty-setup svg {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 4px;
+  color: #9bcdb0;
+  stroke-width: 1.5;
+}
+.visual-empty-setup strong {
+  color: #405248;
+  font-size: 15px;
+}
+.visual-empty-setup span {
+  max-width: 360px;
+  color: #89988e;
+  font-size: 11px;
+  line-height: 1.6;
 }
 @media (max-width: 700px) {
   .recharts-frame {
@@ -3255,10 +3307,38 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.processing-download-footer { width: 100%; flex: 0 0 auto; margin-top: auto; padding-top: 12px; }
-.download-csv-button { width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #a8d8b8; border-radius: 8px; color: #188951; background: #f4fbf6; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
-.download-csv-button:hover { border-color: #72c18d; background: #e8f7ed; }
-.download-csv-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; }
+.processing-download-footer {
+  width: 100%;
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding-top: 12px;
+}
+.download-csv-button {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #a8d8b8;
+  border-radius: 8px;
+  color: #188951;
+  background: #f4fbf6;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.download-csv-button:hover {
+  border-color: #72c18d;
+  background: #e8f7ed;
+}
+.download-csv-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+}
 
 /* Increase readability across the entire left sidebar. */
 .preview-sidebar .sidebar-file-name {

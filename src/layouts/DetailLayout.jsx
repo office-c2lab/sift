@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import {
   ChartColumn,
@@ -20,9 +20,6 @@ function TabIcon({ type }) {
   return <SlidersHorizontal aria-hidden="true" />;
 }
 
-const TOOL_SIDEBAR_DURATION = 720;
-const ASSISTANT_DURATION = 800;
-
 export default function DetailLayout({
   data,
   activeTab,
@@ -34,55 +31,9 @@ export default function DetailLayout({
   sidebarContent,
   outletContext,
 }) {
-  const sidebarContentByTab = useRef({});
-  if (sidebarContent) sidebarContentByTab.current[activeTab] = sidebarContent;
   const hasSidebarContent = Boolean(sidebarContent);
-  const [visibleToolTab, setVisibleToolTab] = useState(() =>
-    sidebarContent ? activeTab : null
-  );
-  const visibleToolTabRef = useRef(visibleToolTab);
-  const [toolSidebarOpen, setToolSidebarOpen] = useState(Boolean(sidebarContent));
-  const [assistantMounted, setAssistantMounted] = useState(assistantOpen);
-  const [assistantClosing, setAssistantClosing] = useState(false);
-
-  useEffect(() => {
-    let closeTimer;
-
-    if (!hasSidebarContent) {
-      setToolSidebarOpen(false);
-      closeTimer = window.setTimeout(() => {
-        visibleToolTabRef.current = null;
-        setVisibleToolTab(null);
-      }, TOOL_SIDEBAR_DURATION);
-    } else {
-      visibleToolTabRef.current = activeTab;
-      setVisibleToolTab(activeTab);
-      setToolSidebarOpen(true);
-    }
-
-    return () => window.clearTimeout(closeTimer);
-  }, [activeTab, hasSidebarContent]);
-
-  useEffect(() => {
-    let closeTimer;
-
-    if (assistantOpen) {
-      setAssistantMounted(true);
-      setAssistantClosing(false);
-    } else if (assistantMounted) {
-      setAssistantClosing(true);
-      closeTimer = window.setTimeout(() => {
-        setAssistantMounted(false);
-        setAssistantClosing(false);
-      }, ASSISTANT_DURATION);
-    }
-
-    return () => window.clearTimeout(closeTimer);
-  }, [assistantOpen, assistantMounted]);
-
-  const visibleSidebarContent = visibleToolTab
-    ? sidebarContentByTab.current[visibleToolTab]
-    : null;
+  const [closedToolTab, setClosedToolTab] = useState(null);
+  const toolSidebarOpen = hasSidebarContent && closedToolTab !== activeTab;
   const toolTabChevron = tab =>
     activeTab === tab && toolSidebarOpen ? (
       <ChevronLeft className="detail-tab-chevron" aria-hidden="true" />
@@ -91,13 +42,10 @@ export default function DetailLayout({
     );
   const openOrToggleToolTab = (tab, path) => {
     if (activeTab === tab) {
-      if (toolSidebarOpen) {
-        setToolSidebarOpen(false);
-      } else {
-        setToolSidebarOpen(true);
-      }
+      setClosedToolTab(current => (current === tab ? null : tab));
       return;
     }
+    setClosedToolTab(null);
     navigate(path);
   };
   const pageHeader = {
@@ -117,7 +65,7 @@ export default function DetailLayout({
 
   return (
     <main
-      className={`preview-workspace detail-workspace${assistantOpen ? ' assistant-visible' : ''}${assistantClosing ? ' assistant-closing' : ''}${toolSidebarOpen ? ' has-tool-sidebar' : ''}${visibleSidebarContent && !toolSidebarOpen ? ' tool-sidebar-closing' : ''}`}
+      className={`preview-workspace detail-workspace${assistantOpen ? ' assistant-visible' : ''}${toolSidebarOpen ? ' has-tool-sidebar' : ''}`}
     >
       <header className="detail-page-header">
         <div className="detail-page-header-brand" aria-label="SIFT">
@@ -201,21 +149,13 @@ export default function DetailLayout({
           </button>
         </div>
       </aside>
-      {visibleSidebarContent && (
-        <aside
-          className={`detail-tool-sidebar${toolSidebarOpen ? '' : ' is-closing'}`}
-        >
-          {visibleSidebarContent}
-        </aside>
-      )}
+      {toolSidebarOpen && <aside className="detail-tool-sidebar">{sidebarContent}</aside>}
       <div className={`detail-layout${assistantOpen ? ' with-assistant' : ''}`}>
         <section className="preview-main detail-main">
           <Outlet context={outletContext} />
         </section>
       </div>
-      {assistantMounted && (
-        <AIAssistantPanel data={data} onClose={onAssistantClose} closing={assistantClosing} />
-      )}
+      {assistantOpen && <AIAssistantPanel data={data} onClose={onAssistantClose} />}
     </main>
   );
 }

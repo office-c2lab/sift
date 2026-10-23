@@ -91,9 +91,10 @@ export default function DetailPage({ data, onChangeFile }) {
   const [mergeColumnName, setMergeColumnName] = useState('');
   const [mergeSeparator, setMergeSeparator] = useState(' ');
   const [confirmation, setConfirmation] = useState(null);
-  const [chartType, setChartType] = useState('bar');
-  const [chartMetricIndex, setChartMetricIndex] = useState('count');
-  const [chartCategoryIndex, setChartCategoryIndex] = useState('auto');
+  const [chartType, setChartType] = useState('');
+  const [chartMetricIndex, setChartMetricIndex] = useState('');
+  const [chartCategoryIndex, setChartCategoryIndex] = useState('');
+  const [renderedChart, setRenderedChart] = useState(null);
   const [assistantOpen, setAssistantOpen] = useState(true);
   const activeTab =
     location.pathname === '/details/visualization'
@@ -119,19 +120,13 @@ export default function DetailPage({ data, onChangeFile }) {
         }),
     [data]
   );
-  const preferredMetric =
-    numericColumns.find(({ header }) =>
-      /매출|revenue|sales|amount|수량|count|price|금액/i.test(header)
-    ) || numericColumns[0];
   const metric =
-    chartMetricIndex === 'count'
+    renderedChart?.metricIndex === 'count'
       ? null
-      : numericColumns.find(({ index }) => index === Number(chartMetricIndex)) || preferredMetric;
-  const categoryIndex =
-    chartCategoryIndex === 'auto'
-      ? data.headers.findIndex((_, index) => !numericColumns.some(column => column.index === index))
-      : Number(chartCategoryIndex);
+      : numericColumns.find(({ index }) => index === Number(renderedChart?.metricIndex));
+  const categoryIndex = renderedChart ? Number(renderedChart.categoryIndex) : -1;
   const chartData = useMemo(() => {
+    if (!renderedChart) return [];
     const grouped = new Map();
     data.rows.forEach((row, rowIndex) => {
       const label = categoryIndex >= 0 ? row[categoryIndex] || '미지정' : `행 ${rowIndex + 1}`;
@@ -141,7 +136,16 @@ export default function DetailPage({ data, onChangeFile }) {
       grouped.set(label, (grouped.get(label) || 0) + value);
     });
     return [...grouped.entries()].slice(0, 20).map(([label, value]) => ({ label, value }));
-  }, [data, metric, categoryIndex]);
+  }, [data, metric, categoryIndex, renderedChart]);
+  const canDrawChart = Boolean(chartType && chartCategoryIndex && chartMetricIndex);
+  const drawChart = () => {
+    if (!canDrawChart) return;
+    setRenderedChart({
+      type: chartType,
+      categoryIndex: chartCategoryIndex,
+      metricIndex: chartMetricIndex,
+    });
+  };
   const visibleRows = processedRows;
   const visibleColumns = processedHeaders
     .map((_, index) => index)
@@ -183,9 +187,7 @@ export default function DetailPage({ data, onChangeFile }) {
         setProcessingTool('missing');
         setProcessedRows(rows =>
           rows.filter(row =>
-            selectedMissingVisibleColumns.every(
-              index => String(row[index] ?? '').trim() !== ''
-            )
+            selectedMissingVisibleColumns.every(index => String(row[index] ?? '').trim() !== '')
           )
         );
         setSelectedMissingColumns([]);
@@ -497,7 +499,8 @@ export default function DetailPage({ data, onChangeFile }) {
       )}
       <div className="processing-download-footer">
         <button className="download-csv-button" type="button" onClick={downloadProcessedCsv}>
-          <Download aria-hidden="true" />CSV 다운로드
+          <Download aria-hidden="true" />
+          CSV 다운로드
         </button>
       </div>
     </section>
@@ -531,7 +534,7 @@ export default function DetailPage({ data, onChangeFile }) {
           value={chartCategoryIndex}
           onChange={setChartCategoryIndex}
           options={[
-            { value: 'auto', label: '자동 선택' },
+            { value: '', label: '가로축 선택' },
             ...data.headers.map((header, index) => ({ value: String(index), label: header })),
           ]}
         />
@@ -542,6 +545,7 @@ export default function DetailPage({ data, onChangeFile }) {
           value={chartMetricIndex}
           onChange={setChartMetricIndex}
           options={[
+            { value: '', label: '세로축 선택' },
             { value: 'count', label: '행 개수' },
             ...numericColumns.map(({ header, index }) => ({
               value: String(index),
@@ -550,7 +554,15 @@ export default function DetailPage({ data, onChangeFile }) {
           ]}
         />
       </div>
-      <p className="chart-control-hint">선택한 기준으로 데이터를 묶어 그래프로 보여줍니다.</p>
+      <button
+        className="draw-chart-button"
+        type="button"
+        disabled={!canDrawChart}
+        onClick={drawChart}
+      >
+        그래프 그리기
+      </button>
+      <p className="chart-control-hint">모든 항목을 선택한 후 그래프 그리기를 눌러주세요.</p>
     </section>
   );
   const outletContext = {
@@ -597,15 +609,15 @@ export default function DetailPage({ data, onChangeFile }) {
         <div className="overview-panels">
           <ColumnInfoCard data={data} layout="table" />
           <section className="overview-preview-card">
-          <header>
-            <div>
-              <span className="overview-preview-icon">
-                <Eye aria-hidden="true" />
-              </span>
-              <h2>데이터</h2>
-            </div>
-          </header>
-          <DataTable headers={data.headers} rows={data.rows} />
+            <header>
+              <div>
+                <span className="overview-preview-icon">
+                  <Eye aria-hidden="true" />
+                </span>
+                <h2>데이터</h2>
+              </div>
+            </header>
+            <DataTable headers={data.headers} rows={data.rows} />
           </section>
         </div>
       </section>
@@ -613,87 +625,122 @@ export default function DetailPage({ data, onChangeFile }) {
     visualization: (
       <section className="detail-view visualization-view">
         <div className="visual-chart-card">
-          <div className="visual-chart-heading">
-            <div>
-              <h2>
-                {metric ? `${metric.header} 합계` : '행 개수'} ·{' '}
-                {categoryIndex >= 0 ? data.headers[categoryIndex] : '전체 행'}
-              </h2>
-              <p>왼쪽 사이드바에서 그래프 종류와 기준을 바꿀 수 있습니다.</p>
+          {!renderedChart ? (
+            <div className="visual-empty visual-empty-setup">
+              <ChartPie aria-hidden="true" />
+              <strong>차트 설정을 완료해 주세요</strong>
+              <span>가로축, 세로축, 그래프 종류를 선택하면 데이터를 시각화할 수 있습니다.</span>
             </div>
-            <span className="chart-legend-label">
-              <i />
-              {metric?.header || '행 개수'}
-            </span>
-          </div>
-          {chartData.length > 0 ? (
-            <div className="recharts-frame">
-              <ResponsiveContainer width="100%" height="100%">
-                {chartType === 'pie' ? (
-                  <PieChart>
-                    <Tooltip />
-                    <Legend />
-                    <Pie
+          ) : chartData.length > 0 ? (
+            <>
+              <div className="visual-chart-heading">
+                <div>
+                  <h2>
+                    {metric ? `${metric.header} 합계` : '행 개수'} · {data.headers[categoryIndex]}
+                  </h2>
+                  <p>설정을 변경한 후 그래프 그리기를 누르면 차트가 갱신됩니다.</p>
+                </div>
+                <span className="chart-legend-label">
+                  <i />
+                  {metric?.header || '행 개수'}
+                </span>
+              </div>
+              <div className="recharts-frame">
+                <ResponsiveContainer width="100%" height="100%" debounce={120}>
+                  {renderedChart.type === 'pie' ? (
+                    <PieChart>
+                      <Tooltip />
+                      <Legend />
+                      <Pie
+                        data={chartData}
+                        dataKey="value"
+                        nameKey="label"
+                        cx="50%"
+                        cy="48%"
+                        outerRadius="72%"
+                        isAnimationActive={false}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {chartData.map((item, index) => (
+                          <Cell key={item.label} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  ) : renderedChart.type === 'line' ? (
+                    <LineChart
                       data={chartData}
-                      dataKey="value"
-                      nameKey="label"
-                      cx="50%"
-                      cy="48%"
-                      outerRadius="72%"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      margin={{ top: 20, right: 24, left: 8, bottom: 48 }}
                     >
-                      {chartData.map((item, index) => (
-                        <Cell key={item.label} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                ) : chartType === 'line' ? (
-                  <LineChart data={chartData} margin={{ top: 20, right: 24, left: 8, bottom: 48 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="label" angle={-28} textAnchor="end" interval={0} height={65} />
-                    <YAxis />
-                    <Tooltip />
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      name={metric?.header || '행 개수'}
-                      stroke="#20a96b"
-                      strokeWidth={3}
-                      dot={{ r: 4 }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
-                ) : chartType === 'area' ? (
-                  <AreaChart data={chartData} margin={{ top: 20, right: 24, left: 8, bottom: 48 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="label" angle={-28} textAnchor="end" interval={0} height={65} />
-                    <YAxis />
-                    <Tooltip />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      name={metric?.header || '행 개수'}
-                      stroke="#20a96b"
-                      fill="#b9e8ca"
-                      strokeWidth={3}
-                    />
-                  </AreaChart>
-                ) : (
-                  <BarChart data={chartData} margin={{ top: 20, right: 24, left: 8, bottom: 48 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="label" angle={-28} textAnchor="end" interval={0} height={65} />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar
-                      dataKey="value"
-                      name={metric?.header || '행 개수'}
-                      fill="#20a96b"
-                      radius={[6, 6, 0, 0]}
-                    />
-                  </BarChart>
-                )}
-              </ResponsiveContainer>
-            </div>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        angle={-28}
+                        textAnchor="end"
+                        interval={0}
+                        height={65}
+                      />
+                      <YAxis />
+                      <Tooltip />
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        name={metric?.header || '행 개수'}
+                        stroke="#20a96b"
+                        strokeWidth={3}
+                        isAnimationActive={false}
+                        dot={{ r: 4 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  ) : renderedChart.type === 'area' ? (
+                    <AreaChart
+                      data={chartData}
+                      margin={{ top: 20, right: 24, left: 8, bottom: 48 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        angle={-28}
+                        textAnchor="end"
+                        interval={0}
+                        height={65}
+                      />
+                      <YAxis />
+                      <Tooltip />
+                      <Area
+                        type="monotone"
+                        dataKey="value"
+                        name={metric?.header || '행 개수'}
+                        stroke="#20a96b"
+                        fill="#b9e8ca"
+                        strokeWidth={3}
+                        isAnimationActive={false}
+                      />
+                    </AreaChart>
+                  ) : (
+                    <BarChart data={chartData} margin={{ top: 20, right: 24, left: 8, bottom: 48 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        angle={-28}
+                        textAnchor="end"
+                        interval={0}
+                        height={65}
+                      />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar
+                        dataKey="value"
+                        name={metric?.header || '행 개수'}
+                        fill="#20a96b"
+                        radius={[6, 6, 0, 0]}
+                        isAnimationActive={false}
+                      />
+                    </BarChart>
+                  )}
+                </ResponsiveContainer>
+              </div>
+            </>
           ) : (
             <div className="visual-empty">표시할 데이터가 없습니다.</div>
           )}
