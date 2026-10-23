@@ -18,7 +18,12 @@ export default function UploadPage({ onChooseFile, loading, error }) {
   return (
     <main className="upload-page">
       <div className="upload-content">
-        <h1 className="page-title">나만의 데이터셋을 업로드하세요</h1>
+        <div className="upload-heading">
+          <div className="upload-brand" aria-label="DataBOM">
+            <img src="/logo.png" alt="" aria-hidden="true" />
+          </div>
+          <h1 className="page-title">나만의 데이터셋을 업로드하세요</h1>
+        </div>
         <section
           className={`upload-dropzone${dragging ? ' is-dragging' : ''}${error ? ' has-error' : ''}${loading ? ' is-loading' : ''}`}
           onDragOver={event => {

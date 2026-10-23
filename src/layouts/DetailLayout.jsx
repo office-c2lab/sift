@@ -4,7 +4,6 @@ import {
   ChartColumn,
   ChevronLeft,
   ChevronRight,
-  Funnel,
   RefreshCw,
   SlidersHorizontal,
   Sparkles,
@@ -69,10 +68,9 @@ export default function DetailLayout({
     >
       <header className="detail-page-header">
         <div className="detail-page-header-brand" aria-label="DataBOM">
-          <span className="detail-brand-symbol">
-            <Funnel aria-hidden="true" />
+          <span className="detail-brand-logo">
+            <img src="/logo.png" alt="" aria-hidden="true" />
           </span>
-          <strong>DataBOM</strong>
         </div>
         <div className="detail-page-header-context">
           <span className="detail-page-header-icon">
@@ -91,20 +89,8 @@ export default function DetailLayout({
             aria-expanded={assistantOpen}
             aria-label={assistantOpen ? 'AI 어시스턴트 닫기' : 'AI 어시스턴트 열기'}
           >
-            <span className="detail-header-ai-icon">
-              <Sparkles aria-hidden="true" />
-            </span>
-            <span className="detail-header-ai-copy">
-              <strong>AI 어시스턴트</strong>
-              <small>{assistantOpen ? '대화창이 열려 있어요' : '데이터에 질문하기'}</small>
-            </span>
-            <span className="detail-header-ai-action">
-              {assistantOpen ? (
-                <ChevronRight aria-hidden="true" />
-              ) : (
-                <ChevronLeft aria-hidden="true" />
-              )}
-            </span>
+            <Sparkles aria-hidden="true" />
+            <span>AI에게 물어보기</span>
           </button>
         </div>
       </header>
