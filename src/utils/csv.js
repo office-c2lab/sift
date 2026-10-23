@@ -1,4 +1,5 @@
-export function parseCsv(text, maxDataRows = Infinity) {
+export function parseCsv(text, maxDataRows = Infinity, options = {}) {
+  const { includeIncompleteLastRow = true } = options;
   const allRows = [];
   let row = [];
   let cell = '';
@@ -13,12 +14,12 @@ export function parseCsv(text, maxDataRows = Infinity) {
     } else if (char === '"') {
       quoted = !quoted;
     } else if (char === ',' && !quoted) {
-      row.push(cell.trim());
+      row.push(cell);
       cell = '';
     } else if ((char === '\n' || char === '\r') && !quoted) {
       if (char === '\r' && text[index + 1] === '\n') index += 1;
-      row.push(cell.trim());
-      if (row.some(Boolean)) allRows.push(row);
+      row.push(cell);
+      if (row.some(value => value !== '')) allRows.push(row);
       row = [];
       cell = '';
       if (allRows.length >= maxDataRows + 1) {
@@ -30,15 +31,13 @@ export function parseCsv(text, maxDataRows = Infinity) {
     }
   }
 
-  if (!reachedLimit) {
-    row.push(cell.trim());
-    if (row.some(Boolean)) allRows.push(row);
+  if (!reachedLimit && includeIncompleteLastRow) {
+    row.push(cell);
+    if (row.some(value => value !== '')) allRows.push(row);
   }
   if (!allRows.length) return null;
 
-  const headers = allRows[0].map(
-    (value, index) => value.replace(/^\uFEFF/, '') || `열 ${index + 1}`
-  );
+  const headers = allRows[0].map(value => value.replace(/^\uFEFF/, ''));
   const rows = allRows.slice(1).map(values => headers.map((_, index) => values[index] ?? ''));
   return { headers, rows, totalRows: rows.length };
 }

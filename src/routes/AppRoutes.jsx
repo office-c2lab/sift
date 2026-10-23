@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { parseCsv } from '../utils/csv.js';
 import UploadPage from '../pages/UploadPage.jsx';
@@ -6,26 +6,53 @@ import PreviewModal from '../pages/PreviewModal.jsx';
 import DetailLoadingPage from '../pages/DetailLoadingPage.jsx';
 import DetailPage from '../pages/DetailPage.jsx';
 import DetailTabView from '../pages/DetailTabView.jsx';
-import { useCsvPreview } from '../hooks/useCsvPreview.js';
 
-const DATA_STORAGE_KEY = 'sift:uploaded-dataset';
+const PREVIEW_ROW_COUNT = 10;
+const INITIAL_PREVIEW_BYTES = 256 * 1024;
+const MAX_PREVIEW_BYTES = 10 * 1024 * 1024;
 
-function readSavedData() {
+function decodePreview(buffer, encoding, includeIncompleteLastRow) {
   try {
-    const saved = localStorage.getItem(DATA_STORAGE_KEY);
-    if (!saved) return null;
-    const data = JSON.parse(saved);
-    return Array.isArray(data.headers) && Array.isArray(data.rows) ? data : null;
+    const decoderEncoding = encoding === 'cp949' ? 'euc-kr' : encoding;
+    const text = new TextDecoder(decoderEncoding).decode(buffer);
+    const parsed = parseCsv(text, PREVIEW_ROW_COUNT, { includeIncompleteLastRow });
+    return parsed?.headers.length
+      ? parsed
+      : { error: '미리보기에 표시할 CSV 행을 찾지 못했어요.' };
   } catch {
-    return null;
+    return { error: '선택한 인코딩으로 파일을 읽지 못했어요.' };
   }
 }
 
-function clearSavedData() {
+function isUtf8(buffer, completeFile) {
   try {
-    localStorage.removeItem(DATA_STORAGE_KEY);
+    new TextDecoder('utf-8', { fatal: true }).decode(buffer, { stream: !completeFile });
+    return true;
   } catch {
-    // Keep the upload flow working if browser storage is unavailable.
+    return false;
+  }
+}
+
+async function createLocalPreview(file) {
+  let sampleSize = Math.min(file.size, INITIAL_PREVIEW_BYTES);
+
+  while (true) {
+    const completeFile = sampleSize >= file.size;
+    const buffer = await file.slice(0, sampleSize).arrayBuffer();
+    const previews = {
+      'utf-8': decodePreview(buffer, 'utf-8', completeFile),
+      cp949: decodePreview(buffer, 'cp949', completeFile),
+    };
+    const recommendedEncoding = isUtf8(buffer, completeFile) ? 'utf-8' : 'cp949';
+    const recommendedPreview = previews[recommendedEncoding];
+    const hasEnoughRows = recommendedPreview?.rows?.length >= PREVIEW_ROW_COUNT;
+    const reachedReadLimit = completeFile || sampleSize >= MAX_PREVIEW_BYTES;
+
+    if (hasEnoughRows || reachedReadLimit) {
+      return { previews, recommendedEncoding };
+    }
+
+    sampleSize = Math.min(sampleSize * 2, file.size, MAX_PREVIEW_BYTES);
   }
 }
 
@@ -33,29 +60,19 @@ export default function AppRoutes() {
   const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewData, setPreviewData] = useState(null);
-  const [serverPreviews, setServerPreviews] = useState(null);
-  const [detailData, setDetailData] = useState(readSavedData);
+  const [localPreviews, setLocalPreviews] = useState(null);
+  const [detailData, setDetailData] = useState(null);
   const [uploadError, setUploadError] = useState('');
   const [detailError, setDetailError] = useState('');
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [csvEncoding, setCsvEncoding] = useState('utf-8');
-  const { mutateAsync: requestCsvPreview, isPending: loadingPreview } = useCsvPreview();
-
-  useEffect(() => {
-    if (!detailData) return;
-    try {
-      localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(detailData));
-    } catch {
-      // Storage can be full for very large CSV files; keep the current session usable.
-    }
-  }, [detailData]);
 
   const chooseFile = async file => {
     if (!file) return;
     setPreviewData(null);
-    setServerPreviews(null);
+    setLocalPreviews(null);
     setDetailData(null);
-    clearSavedData();
     setUploadError('');
     setDetailError('');
     if (!/\.csv$/i.test(file.name)) {
@@ -63,30 +80,33 @@ export default function AppRoutes() {
       return;
     }
     try {
-      const response = await requestCsvPreview(file);
-      const availableEncoding = [response.recommended_encoding, 'utf-8', 'cp949'].find(
-        encoding => response.previews?.[encoding]?.headers
+      setLoadingPreview(true);
+      const { previews, recommendedEncoding } = await createLocalPreview(file);
+      const availableEncoding = [recommendedEncoding, 'utf-8', 'cp949'].find(
+        encoding => previews[encoding]?.headers
       );
       if (!availableEncoding) throw new Error('No available CSV preview');
 
-      const sample = response.previews[availableEncoding];
+      const sample = previews[availableEncoding];
       setCsvEncoding(availableEncoding);
       setSelectedFile(file);
-      setServerPreviews(response.previews);
+      setLocalPreviews(previews);
       setPreviewData({
         ...sample,
         totalRows: sample.rows.length,
-        fileName: response.filename,
+        fileName: file.name,
         fileSize: file.size,
       });
     } catch {
-      setUploadError('CSV 미리보기를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
+      setUploadError('CSV 미리보기를 만들지 못했어요. 파일 형식과 인코딩을 확인해 주세요.');
+    } finally {
+      setLoadingPreview(false);
     }
   };
 
   const changeEncoding = encoding => {
-    if (!selectedFile || !serverPreviews || encoding === csvEncoding) return;
-    const sample = serverPreviews[encoding];
+    if (!selectedFile || !localPreviews || encoding === csvEncoding) return;
+    const sample = localPreviews[encoding];
     if (!sample?.headers) {
       setDetailError(sample?.error ?? '선택한 인코딩으로 파일을 읽지 못했어요.');
       return;
@@ -127,7 +147,7 @@ export default function AppRoutes() {
   const cancelPreview = () => {
     setSelectedFile(null);
     setPreviewData(null);
-    setServerPreviews(null);
+    setLocalPreviews(null);
     setDetailError('');
     navigate('/', { replace: true });
   };
@@ -135,9 +155,8 @@ export default function AppRoutes() {
   const startOver = () => {
     setSelectedFile(null);
     setPreviewData(null);
-    setServerPreviews(null);
+    setLocalPreviews(null);
     setDetailData(null);
-    clearSavedData();
     setUploadError('');
     setDetailError('');
     navigate('/', { replace: true });

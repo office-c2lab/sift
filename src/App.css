@@ -396,6 +396,10 @@
   color: #4d5851;
   font-size: 12px;
 }
+.preview-table th,
+.preview-table td {
+  white-space: pre;
+}
 .preview-table th:first-child,
 .preview-table td:first-child {
   width: 96px;
