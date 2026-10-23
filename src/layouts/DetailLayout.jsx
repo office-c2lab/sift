@@ -4,6 +4,7 @@ import {
   ChartColumn,
   ChevronLeft,
   ChevronRight,
+  Funnel,
   RefreshCw,
   SlidersHorizontal,
   Sparkles,
@@ -99,11 +100,66 @@ export default function DetailLayout({
     }
     navigate(path);
   };
+  const pageHeader = {
+    overview: {
+      title: '데이터 개요',
+      description: '업로드한 데이터의 구조와 품질을 확인하세요.',
+    },
+    processing: {
+      title: '데이터 처리',
+      description: '필요한 방식으로 데이터를 정리하고 내려받으세요.',
+    },
+    visualization: {
+      title: '시각화',
+      description: '컬럼을 선택해 데이터의 분포와 흐름을 살펴보세요.',
+    },
+  }[activeTab];
 
   return (
     <main
       className={`preview-workspace detail-workspace${assistantOpen ? ' assistant-visible' : ''}${assistantClosing ? ' assistant-closing' : ''}${toolSidebarOpen ? ' has-tool-sidebar' : ''}${visibleSidebarContent && !toolSidebarOpen ? ' tool-sidebar-closing' : ''}`}
     >
+      <header className="detail-page-header">
+        <div className="detail-page-header-brand" aria-label="SIFT">
+          <span className="detail-brand-symbol">
+            <Funnel aria-hidden="true" />
+          </span>
+          <strong>SIFT</strong>
+        </div>
+        <div className="detail-page-header-context">
+          <span className="detail-page-header-icon">
+            <TabIcon type={activeTab} />
+          </span>
+          <div className="detail-page-header-copy">
+            <h1>{pageHeader.title}</h1>
+            <p>{pageHeader.description}</p>
+          </div>
+        </div>
+        <div className="detail-page-header-actions">
+          <button
+            type="button"
+            className="detail-header-ai-toggle"
+            onClick={assistantOpen ? onAssistantClose : onAssistantOpen}
+            aria-expanded={assistantOpen}
+            aria-label={assistantOpen ? 'AI 어시스턴트 닫기' : 'AI 어시스턴트 열기'}
+          >
+            <span className="detail-header-ai-icon">
+              <Sparkles aria-hidden="true" />
+            </span>
+            <span className="detail-header-ai-copy">
+              <strong>AI 어시스턴트</strong>
+              <small>{assistantOpen ? '대화창이 열려 있어요' : '데이터에 질문하기'}</small>
+            </span>
+            <span className="detail-header-ai-action">
+              {assistantOpen ? (
+                <ChevronRight aria-hidden="true" />
+              ) : (
+                <ChevronLeft aria-hidden="true" />
+              )}
+            </span>
+          </button>
+        </div>
+      </header>
       <aside className="preview-sidebar">
         <section className="sidebar-dataset-summary" aria-label="업로드한 CSV 정보">
           <div className="sidebar-dataset-file">
@@ -139,15 +195,6 @@ export default function DetailLayout({
           </button>
         </nav>
         <div className="sidebar-footer-actions">
-          <button
-            type="button"
-            className="sidebar-action-button sidebar-ai-toggle"
-            onClick={assistantOpen ? onAssistantClose : onAssistantOpen}
-            aria-expanded={assistantOpen}
-          >
-            <Sparkles aria-hidden="true" />
-            AI 어시스턴트 {assistantOpen ? '닫기' : '열기'}
-          </button>
           <button type="button" className="sidebar-action-button" onClick={onFileChange}>
             <RefreshCw aria-hidden="true" />
             파일 변경
