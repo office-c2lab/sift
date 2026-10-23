@@ -61,8 +61,8 @@ export default function DetailLayout({
       description: '필요한 방식으로 데이터를 정리하고 내려받으세요.',
     },
     merge: {
-      title: '컬럼 병합',
-      description: '두 컬럼의 값을 하나의 새 컬럼으로 합치세요.',
+      title: '데이터 병합',
+      description: '다른 CSV를 기준 키로 결합하거나 행 단위로 이어 붙이세요.',
     },
     visualization: {
       title: '시각화',

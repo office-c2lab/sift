@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import useDatasetOverview from '../hooks/useDatasetOverview.js';
 import useChartData from '../hooks/useChartData.js';
 import useChartOptions from '../hooks/useChartOptions.js';
-import { formatFileSize } from '../utils/csv.js';
+import { formatFileSize, parseCsv } from '../utils/csv.js';
 import ColumnInfoCard from './ColumnInfoCard.jsx';
 import ConfirmActionModal from './ConfirmActionModal.jsx';
 import CustomDropdown from '../components/CustomDropdown.jsx';
@@ -16,6 +16,7 @@ import {
   Copy,
   Database,
   Eye,
+  FileUp,
   Merge,
   Rows3,
   Search,
@@ -43,6 +44,19 @@ import {
 } from 'recharts';
 
 const CHART_COLORS = ['#20a96b', '#69c58f', '#328f67', '#a0d9b6', '#4eb884', '#167c4a', '#c4ead2'];
+
+async function readMergeCsv(file) {
+  const buffer = await file.arrayBuffer();
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+  } catch {
+    text = new TextDecoder('euc-kr').decode(buffer);
+  }
+  const parsed = parseCsv(text);
+  if (!parsed?.headers.length) throw new Error('empty CSV');
+  return { ...parsed, fileName: file.name };
+}
 
 function DataTable({ headers, rows, indices = headers.map((_, index) => index) }) {
   return (
@@ -91,10 +105,13 @@ export default function DetailPage({ data, onChangeFile }) {
   const [processedHeaders, setProcessedHeaders] = useState(data.headers);
   const [processedRows, setProcessedRows] = useState(data.rows);
   const [processingTool, setProcessingTool] = useState('columns');
-  const [mergeFirstColumn, setMergeFirstColumn] = useState('');
-  const [mergeSecondColumn, setMergeSecondColumn] = useState('');
-  const [mergeColumnName, setMergeColumnName] = useState('');
-  const [mergeSeparator, setMergeSeparator] = useState(' ');
+  const [mergeMode, setMergeMode] = useState('key');
+  const [mergeFileData, setMergeFileData] = useState(null);
+  const [mergeFileLoading, setMergeFileLoading] = useState(false);
+  const [mergeFileError, setMergeFileError] = useState('');
+  const [mergePrimaryKey, setMergePrimaryKey] = useState('');
+  const [mergeSecondaryKey, setMergeSecondaryKey] = useState('');
+  const [mergeJoinType, setMergeJoinType] = useState('left');
   const [confirmation, setConfirmation] = useState(null);
   const [chartType, setChartType] = useState('');
   const [chartMetricIndex, setChartMetricIndex] = useState('');
@@ -183,10 +200,20 @@ export default function DetailPage({ data, onChangeFile }) {
   const visibleColumns = processedHeaders
     .map((_, index) => index)
     .filter(index => !removedColumns.includes(index));
-  const mergeColumnOptions = visibleColumns.map(index => ({
+  const mergePrimaryOptions = visibleColumns.map(index => ({
     value: String(index),
     label: processedHeaders[index],
   }));
+  const mergeSecondaryOptions = (mergeFileData?.headers ?? []).map((header, index) => ({
+    value: String(index),
+    label: header,
+  }));
+  const currentMergeHeaders = visibleColumns.map(index => processedHeaders[index]);
+  const appendCompatible = Boolean(
+    mergeFileData &&
+      currentMergeHeaders.length === mergeFileData.headers.length &&
+      currentMergeHeaders.every(header => mergeFileData.headers.includes(header))
+  );
   const missingValueCount = data.rows.reduce(
     (total, row) => total + row.filter(value => String(value ?? '').trim() === '').length,
     0
@@ -283,35 +310,100 @@ export default function DetailPage({ data, onChangeFile }) {
       },
     });
   };
-  const mergeColumns = () => {
-    const firstIndex = Number(mergeFirstColumn);
-    const secondIndex = Number(mergeSecondColumn);
-    const name = mergeColumnName.trim();
-    if (!name || mergeFirstColumn === '' || mergeSecondColumn === '' || firstIndex === secondIndex)
+  const chooseMergeFile = async file => {
+    if (!file) return;
+    setMergeFileError('');
+    setMergeFileData(null);
+    setMergePrimaryKey('');
+    setMergeSecondaryKey('');
+    if (!/\.csv$/i.test(file.name)) {
+      setMergeFileError('CSV 파일을 선택해 주세요.');
       return;
-    let uniqueName = name;
-    let suffix = 2;
-    while (processedHeaders.includes(uniqueName)) {
-      uniqueName = `${name}_${suffix}`;
-      suffix += 1;
     }
+    try {
+      setMergeFileLoading(true);
+      setMergeFileData(await readMergeCsv(file));
+    } catch {
+      setMergeFileError('병합할 CSV를 읽지 못했어요. 파일 형식과 인코딩을 확인해 주세요.');
+    } finally {
+      setMergeFileLoading(false);
+    }
+  };
+  const mergeDatasets = () => {
+    if (!mergeFileData) return;
+    const baseRows = processedRows.map(row => visibleColumns.map(index => row[index] ?? ''));
+
+    if (mergeMode === 'append') {
+      if (!appendCompatible) return;
+      setConfirmation({
+        title: '두 데이터셋의 행을 이어 붙일까요?',
+        description: `${mergeFileData.fileName}의 ${mergeFileData.rows.length.toLocaleString()}개 행을 현재 데이터 아래에 추가합니다.`,
+        confirmLabel: '행 추가',
+        onConfirm: () => {
+          const sourceIndices = currentMergeHeaders.map(header =>
+            mergeFileData.headers.indexOf(header)
+          );
+          const appendedRows = mergeFileData.rows.map(row =>
+            sourceIndices.map(index => row[index] ?? '')
+          );
+          setProcessedHeaders(currentMergeHeaders);
+          setProcessedRows([...baseRows, ...appendedRows]);
+          setRemovedColumns([]);
+          setSelectedRemovalColumns([]);
+          setSelectedMissingColumns([]);
+          setSelectedDuplicateColumns([]);
+        },
+      });
+      return;
+    }
+
+    if (mergePrimaryKey === '' || mergeSecondaryKey === '') return;
+    const primaryKeyIndex = visibleColumns.indexOf(Number(mergePrimaryKey));
+    const secondaryKeyIndex = Number(mergeSecondaryKey);
+    const sourceValueIndices = mergeFileData.headers
+      .map((_, index) => index)
+      .filter(index => index !== secondaryKeyIndex);
+    const mergedHeaders = [...currentMergeHeaders];
+    sourceValueIndices.forEach(index => {
+      const baseName = mergeFileData.headers[index];
+      let uniqueName = baseName;
+      let suffix = 2;
+      while (mergedHeaders.includes(uniqueName)) {
+        uniqueName = `${baseName}_병합${suffix === 2 ? '' : suffix}`;
+        suffix += 1;
+      }
+      mergedHeaders.push(uniqueName);
+    });
+    const rowsByKey = new Map();
+    mergeFileData.rows.forEach(row => {
+      const key = String(row[secondaryKeyIndex] ?? '');
+      const matches = rowsByKey.get(key) ?? [];
+      matches.push(row);
+      rowsByKey.set(key, matches);
+    });
+    const mergedRows = baseRows.flatMap(row => {
+      const matches = rowsByKey.get(String(row[primaryKeyIndex] ?? ''));
+      if (!matches?.length) {
+        return mergeJoinType === 'left'
+          ? [[...row, ...sourceValueIndices.map(() => '')]]
+          : [];
+      }
+      return matches.map(match => [
+        ...row,
+        ...sourceValueIndices.map(index => match[index] ?? ''),
+      ]);
+    });
     setConfirmation({
-      title: '선택한 컬럼을 병합할까요?',
-      description: `${processedHeaders[firstIndex]}와 ${processedHeaders[secondIndex]} 값을 합쳐 ${uniqueName} 컬럼을 만듭니다.`,
-      confirmLabel: '컬럼 병합',
+      title: '선택한 키를 기준으로 데이터를 병합할까요?',
+      description: `${mergeJoinType === 'left' ? '왼쪽 외부 조인' : '내부 조인'}으로 ${mergedRows.length.toLocaleString()}개 결과 행을 만듭니다.`,
+      confirmLabel: '데이터 병합',
       onConfirm: () => {
-        setProcessedHeaders(headers => [...headers, uniqueName]);
-        setProcessedRows(rows =>
-          rows.map(row => {
-            const values = [row[firstIndex], row[secondIndex]]
-              .map(value => String(value ?? '').trim())
-              .filter(Boolean);
-            return [...row, values.join(mergeSeparator)];
-          })
-        );
-        setMergeColumnName('');
-        setMergeFirstColumn('');
-        setMergeSecondColumn('');
+        setProcessedHeaders(mergedHeaders);
+        setProcessedRows(mergedRows);
+        setRemovedColumns([]);
+        setSelectedRemovalColumns([]);
+        setSelectedMissingColumns([]);
+        setSelectedDuplicateColumns([]);
       },
     });
   };
@@ -380,55 +472,107 @@ export default function DetailPage({ data, onChangeFile }) {
         : '선택한 컬럼 제거';
   const mergeControls = (
     <section className="sidebar-tools">
-      <div className="merge-column-form">
-        <div className="process-column-heading">
-          <strong>병합할 컬럼 설정</strong>
-          <span>2개 선택</span>
-        </div>
-        <label>
-          <span>첫 번째 컬럼</span>
-          <CustomDropdown
-            value={mergeFirstColumn}
-            onChange={setMergeFirstColumn}
-            options={[{ value: '', label: '컬럼 선택' }, ...mergeColumnOptions]}
-          />
-        </label>
-        <label>
-          <span>두 번째 컬럼</span>
-          <CustomDropdown
-            value={mergeSecondColumn}
-            onChange={setMergeSecondColumn}
-            options={[{ value: '', label: '컬럼 선택' }, ...mergeColumnOptions]}
-          />
-        </label>
-        <label>
-          <span>새 컬럼명</span>
+      <div className="data-merge-form">
+        <fieldset>
+          <legend>병합 방식</legend>
+          <div className="data-merge-mode-options">
+            <button
+              type="button"
+              className={mergeMode === 'key' ? 'active' : ''}
+              onClick={() => setMergeMode('key')}
+            >
+              키 기준 병합
+            </button>
+            <button
+              type="button"
+              className={mergeMode === 'append' ? 'active' : ''}
+              onClick={() => setMergeMode('append')}
+            >
+              행 추가
+            </button>
+          </div>
+        </fieldset>
+        <label className="data-merge-file-picker">
+          <span>병합할 CSV</span>
+          <span className="data-merge-file-button">
+            <FileUp aria-hidden="true" />
+            {mergeFileLoading ? '파일 읽는 중' : 'CSV 파일 선택'}
+          </span>
           <input
-            value={mergeColumnName}
-            onChange={event => setMergeColumnName(event.target.value)}
-            placeholder="예: 전체 주소"
+            type="file"
+            accept=".csv,text/csv"
+            disabled={mergeFileLoading}
+            onChange={event => chooseMergeFile(event.target.files?.[0])}
           />
         </label>
-        <label>
-          <span>구분자</span>
-          <input
-            value={mergeSeparator}
-            onChange={event => setMergeSeparator(event.target.value)}
-            placeholder="공백 없이 병합"
-          />
-        </label>
+        {mergeFileData && (
+          <div className="data-merge-selected-file">
+            <strong title={mergeFileData.fileName}>{mergeFileData.fileName}</strong>
+            <span>
+              {mergeFileData.rows.length.toLocaleString()}행 ·{' '}
+              {mergeFileData.headers.length.toLocaleString()}열
+            </span>
+          </div>
+        )}
+        {mergeFileError && (
+          <p className="data-merge-message is-error" role="alert">
+            {mergeFileError}
+          </p>
+        )}
+        {mergeMode === 'key' ? (
+          <>
+            <label>
+              <span>현재 데이터 기준 컬럼</span>
+              <CustomDropdown
+                value={mergePrimaryKey}
+                onChange={setMergePrimaryKey}
+                options={[{ value: '', label: '기준 컬럼 선택' }, ...mergePrimaryOptions]}
+              />
+            </label>
+            <label>
+              <span>추가 데이터 기준 컬럼</span>
+              <CustomDropdown
+                value={mergeSecondaryKey}
+                onChange={setMergeSecondaryKey}
+                disabled={!mergeFileData}
+                options={[
+                  { value: '', label: '기준 컬럼 선택' },
+                  ...mergeSecondaryOptions,
+                ]}
+              />
+            </label>
+            <label>
+              <span>조인 방식</span>
+              <CustomDropdown
+                value={mergeJoinType}
+                onChange={setMergeJoinType}
+                options={[
+                  { value: 'left', label: '왼쪽 외부 조인' },
+                  { value: 'inner', label: '내부 조인' },
+                ]}
+              />
+            </label>
+          </>
+        ) : (
+          <p className={`data-merge-message${mergeFileData && !appendCompatible ? ' is-error' : ''}`}>
+            {mergeFileData && !appendCompatible
+              ? '행을 추가하려면 두 데이터셋의 컬럼 구성이 같아야 합니다.'
+              : '같은 컬럼의 데이터를 현재 데이터 아래에 이어 붙입니다.'}
+          </p>
+        )}
         <button
-          className="merge-columns-button"
+          className="merge-datasets-button"
           type="button"
           disabled={
-            !mergeColumnName.trim() ||
-            mergeFirstColumn === '' ||
-            mergeSecondColumn === '' ||
-            mergeFirstColumn === mergeSecondColumn
+            !mergeFileData ||
+            (mergeMode === 'key'
+              ? mergePrimaryKey === '' || mergeSecondaryKey === ''
+              : !appendCompatible)
           }
-          onClick={mergeColumns}
+          onClick={mergeDatasets}
         >
-          <ProcessToolIcon type="merge" />새 컬럼으로 병합
+          <Merge aria-hidden="true" />
+          {mergeMode === 'key' ? '데이터 병합하기' : '행 추가하기'}
         </button>
       </div>
     </section>
