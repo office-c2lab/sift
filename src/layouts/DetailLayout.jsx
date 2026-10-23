@@ -68,11 +68,11 @@ export default function DetailLayout({
       className={`preview-workspace detail-workspace${assistantOpen ? ' assistant-visible' : ''}${toolSidebarOpen ? ' has-tool-sidebar' : ''}`}
     >
       <header className="detail-page-header">
-        <div className="detail-page-header-brand" aria-label="SIFT">
+        <div className="detail-page-header-brand" aria-label="DataBOM">
           <span className="detail-brand-symbol">
             <Funnel aria-hidden="true" />
           </span>
-          <strong>SIFT</strong>
+          <strong>DataBOM</strong>
         </div>
         <div className="detail-page-header-context">
           <span className="detail-page-header-icon">
