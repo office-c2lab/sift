@@ -1940,6 +1940,10 @@
   color: #188951;
   background: #e5f3ea;
 }
+.ai-panel-header .ai-new-chat-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
 .ai-panel-header .ai-new-chat-button svg {
   width: 15px;
   height: 15px;
@@ -2024,6 +2028,8 @@
   background: #f3f6fa;
   font-size: 11px;
   line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .ai-answer-loading {
   width: fit-content;
@@ -2051,6 +2057,27 @@
 .ai-loading-dots i:nth-child(3) {
   animation-delay: 0.24s;
 }
+.ai-load-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 10px;
+  color: #a13d3d;
+  background: #fff1f1;
+  font-size: 12px;
+}
+.ai-load-error button {
+  flex: 0 0 auto;
+  border: 0;
+  color: #188951;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
 @keyframes ai-wait-dot {
   0%,
   60%,
@@ -2064,36 +2091,47 @@
   }
 }
 .ai-prompt-form {
-  min-height: 58px;
+  min-height: 64px;
   flex: 0 0 auto;
-  padding: 8px 9px;
+  padding: 9px 10px 9px 14px;
   display: flex;
-  align-items: flex-end;
-  gap: 7px;
-  border: 1px solid #e2e8ed;
-  border-radius: 10px;
+  align-items: center;
+  gap: 9px;
+  border: 2px solid #b8d9c4;
+  border-radius: 14px;
+  background: #f3faf5;
+  box-shadow: 0 3px 12px #1a7c4920;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease;
+}
+.ai-prompt-form:focus-within {
+  border-color: #20a96b;
   background: #fff;
+  box-shadow: 0 0 0 3px #20a96b24, 0 4px 14px #1a7c4924;
 }
 .ai-prompt-form input {
   min-width: 0;
   flex: 1;
-  height: 37px;
+  height: 40px;
   border: 0;
   outline: 0;
-  color: #3b4b5e;
+  color: #263b2f;
+  background: transparent;
   font: inherit;
   font-size: 11px;
 }
 .ai-prompt-form input::placeholder {
-  color: #a4afbb;
+  color: #718278;
 }
 .ai-prompt-form input:disabled {
   color: #8c9c92;
   background: transparent;
 }
 .ai-prompt-form button {
-  width: 31px;
-  height: 31px;
+  width: 36px;
+  height: 36px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
@@ -3536,6 +3574,10 @@
 .download-csv-button:hover {
   border-color: #72c18d;
   background: #e8f7ed;
+}
+.download-csv-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 .download-csv-button svg {
   width: 17px;

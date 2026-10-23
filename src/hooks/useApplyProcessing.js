@@ -4,6 +4,7 @@ import { chartOptionsQueryPrefix } from './useChartOptions.js';
 import { datasetOverviewQueryKey } from './useDatasetOverview.js';
 import { datasetRowsQueryPrefix } from './useDatasetRowPages.js';
 import { processingOptionsQueryKey } from './useProcessingOptions.js';
+import { aiSuggestionsQueryKey } from './useAiSuggestions.js';
 
 export default function useApplyProcessing(datasetId) {
   const queryClient = useQueryClient();
@@ -16,6 +17,7 @@ export default function useApplyProcessing(datasetId) {
         queryClient.invalidateQueries({ queryKey: datasetOverviewQueryKey(datasetId) }),
         queryClient.invalidateQueries({ queryKey: datasetRowsQueryPrefix(datasetId) }),
         queryClient.invalidateQueries({ queryKey: processingOptionsQueryKey(datasetId) }),
+        queryClient.invalidateQueries({ queryKey: aiSuggestionsQueryKey(datasetId) }),
         queryClient.invalidateQueries({
           queryKey: chartOptionsQueryPrefix(datasetId),
         }),

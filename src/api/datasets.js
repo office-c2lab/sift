@@ -22,6 +22,29 @@ export async function getDatasetRows(datasetId, { offset = 0, limit = 100, signa
   return data;
 }
 
+export async function downloadDataset(datasetId) {
+  const response = await api.get(`/datasets/${encodeURIComponent(datasetId)}/download`, {
+    responseType: 'blob',
+  });
+  const disposition = response.headers['content-disposition'] ?? '';
+  const encodedFilename = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const plainFilename = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+  let filename = plainFilename;
+
+  if (encodedFilename) {
+    try {
+      filename = decodeURIComponent(encodedFilename);
+    } catch {
+      filename = encodedFilename;
+    }
+  }
+
+  return {
+    blob: response.data,
+    filename: filename?.replace(/[\\/]/g, '_'),
+  };
+}
+
 export async function getChartOptions(datasetId, chartType, signal) {
   const { data } = await api.get(
     `/datasets/${encodeURIComponent(datasetId)}/charts/options`,
@@ -52,6 +75,30 @@ export async function getProcessingOptions(datasetId, signal) {
 export async function applyProcessing(datasetId, request) {
   const { data } = await api.post(
     `/datasets/${encodeURIComponent(datasetId)}/processing`,
+    request
+  );
+  return data;
+}
+
+export async function getAiSuggestions(datasetId, signal) {
+  const { data } = await api.get(
+    `/datasets/${encodeURIComponent(datasetId)}/ai/suggestions`,
+    { signal }
+  );
+  return data;
+}
+
+export async function sendAiMessage(datasetId, request) {
+  const { data } = await api.post(
+    `/datasets/${encodeURIComponent(datasetId)}/ai/chat`,
+    request
+  );
+  return data;
+}
+
+export async function resetAiConversation(datasetId, request) {
+  const { data } = await api.post(
+    `/datasets/${encodeURIComponent(datasetId)}/ai/reset`,
     request
   );
   return data;

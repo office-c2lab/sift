@@ -31,6 +31,7 @@ export default function DetailLayout({
   onAssistantClose,
   onFileChange,
   onDownloadCsv,
+  downloadPending,
   sidebarContent,
   outletContext,
 }) {
@@ -159,12 +160,15 @@ export default function DetailLayout({
           </button>
         </nav>
         <div className="sidebar-footer-actions">
-          {(activeTab === 'processing' || activeTab === 'merge') && (
-            <button type="button" className="download-csv-button" onClick={onDownloadCsv}>
-              <Download aria-hidden="true" />
-              CSV 다운로드
-            </button>
-          )}
+          <button
+            type="button"
+            className="download-csv-button"
+            onClick={onDownloadCsv}
+            disabled={downloadPending}
+          >
+            <Download aria-hidden="true" />
+            {downloadPending ? '다운로드 중...' : 'CSV 다운로드'}
+          </button>
           <button type="button" className="sidebar-action-button" onClick={onFileChange}>
             <RefreshCw aria-hidden="true" />
             파일 변경
@@ -177,7 +181,9 @@ export default function DetailLayout({
           <Outlet context={outletContext} />
         </section>
       </div>
-      {assistantOpen && <AIAssistantPanel data={data} onClose={onAssistantClose} />}
+      {assistantOpen && (
+        <AIAssistantPanel datasetId={data.datasetId} onClose={onAssistantClose} />
+      )}
     </main>
   );
 }

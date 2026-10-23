@@ -6,6 +6,7 @@ import useChartData from '../hooks/useChartData.js';
 import useChartOptions from '../hooks/useChartOptions.js';
 import useApplyProcessing from '../hooks/useApplyProcessing.js';
 import useProcessingOptions from '../hooks/useProcessingOptions.js';
+import useDownloadDataset from '../hooks/useDownloadDataset.js';
 import { formatFileSize, parseCsv } from '../utils/csv.js';
 import ColumnInfoCard from './ColumnInfoCard.jsx';
 import ConfirmActionModal from './ConfirmActionModal.jsx';
@@ -138,6 +139,7 @@ export default function DetailPage({ data, onChangeFile }) {
     isError: processingOptionsError,
   } = useProcessingOptions(data.datasetId);
   const processingMutation = useApplyProcessing(data.datasetId);
+  const downloadMutation = useDownloadDataset(data.datasetId);
   const activeTab =
     location.pathname === '/details/visualization'
       ? 'visualization'
@@ -416,22 +418,24 @@ export default function DetailPage({ data, onChangeFile }) {
       },
     });
   };
-  const downloadProcessedCsv = () => {
-    const escapeCell = value => {
-      const text = String(value ?? '');
-      return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
-    };
-    const csvRows = [
-      visibleColumns.map(index => processedHeaders[index]),
-      ...processedRows.map(row => visibleColumns.map(index => row[index] ?? '')),
-    ];
-    const csv = `\uFEFF${csvRows.map(row => row.map(escapeCell).join(',')).join('\r\n')}`;
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${data.fileName.replace(/\.csv$/i, '')}_processed.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const downloadCurrentCsv = () => {
+    if (downloadMutation.isPending) return;
+
+    downloadMutation.mutate(undefined, {
+      onSuccess: ({ blob, filename }) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename || data.fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      },
+      onError: () => {
+        toast.error('CSV 파일을 다운로드하지 못했어요.');
+      },
+    });
   };
   const confirmFileChange = () =>
     setConfirmation({
@@ -1026,7 +1030,8 @@ export default function DetailPage({ data, onChangeFile }) {
         onAssistantOpen={() => setAssistantOpen(true)}
         onAssistantClose={() => setAssistantOpen(false)}
         onFileChange={confirmFileChange}
-        onDownloadCsv={downloadProcessedCsv}
+        onDownloadCsv={downloadCurrentCsv}
+        downloadPending={downloadMutation.isPending}
         sidebarContent={
           activeTab === 'merge'
             ? mergeControls
